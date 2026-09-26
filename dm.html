@@ -1,17 +1,307 @@
+```html
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><title>messages</title><link rel="stylesheet" href="style.css"><script src="theme.js"></script></head>
+<html lang="fr">
+
+<head>
+<meta charset="utf-8">
+<title>messages</title>
+
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
 <body>
+
 <h1>messages privés</h1>
+
 <div class="box">
-<input id="to" placeholder="pseudo a qui"><br><input id="msg" placeholder="ton mesag"><button onclick="sendDM()">envoyer</button>
-</div><div id="chat"></div>
+
+<input id="to" placeholder="pseudo a qui"><br>
+
+<input id="msg" placeholder="ton mesag">
+
+<button onclick="sendDM()">envoyer</button>
+
+<p id="status"></p>
+
+</div>
+
+<div id="chat"></div>
+
 <a class="nav" href="index.html">accueil</a>
+
 <script>
-const me=localStorage.getItem("pseudo")||"anonymous";
-let all=JSON.parse(localStorage.getItem("dms")||"[]");
-function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
-function sendDM(){const t=to.value.trim(),m=msg.value.trim();if(!t||!m)return;all.push({from:me,to:t,text:m});localStorage.setItem("dms",JSON.stringify(all));msg.value="";showDM();}
-function showDM(){chat.innerHTML=all.filter(x=>x.from===me||x.to===me).map(x=>"<p><b>"+esc(x.from)+" → "+esc(x.to)+"</b>: "+esc(x.text)+"</p>").join("")||"<div class='box'>pas de mesag</div>";}
-showDM();
+
+
+
+const SUPABASE_URL =
+"https://cwmlajtwhriqjoopknsp.supabase.co";
+
+const SUPABASE_KEY =
+"sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+
+const supabaseClient =
+window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+
+
+function esc(s) {
+
+  return String(s).replace(
+    /[&<>"']/g,
+    c => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c])
+  );
+
+}
+
+
+
+
+let me = null;
+
+
+
+async function getMe() {
+
+  const { data, error } =
+    await supabaseClient.auth.getUser();
+
+  if (error || !data.user) {
+
+    chat.innerHTML =
+      "<div class='box'>" +
+      "connecte-toi pour utiliser les messages" +
+      "</div>";
+
+    return false;
+  }
+
+  me = data.user;
+
+  return true;
+}
+
+
+
+
+async function findUser(username) {
+
+  const { data, error } =
+    await supabaseClient
+      .from("profiles")
+      .select("id, username")
+      .eq("username", username)
+      .single();
+
+  if (error || !data) {
+
+    return null;
+
+  }
+
+  return data;
+
+}
+
+
+
+
+async function sendDM() {
+
+  const username =
+    to.value.trim();
+
+  const text =
+    msg.value.trim();
+
+  if (!username || !text) return;
+
+  if (!me) {
+
+    alert("connecte-toi d'abord");
+    return;
+
+  }
+
+  status.textContent =
+    "recherche du pseudo...";
+
+
+  const recipient =
+    await findUser(username);
+
+
+  if (!recipient) {
+
+    status.textContent =
+      "pseudo introuvable";
+
+    return;
+
+  }
+
+
+  if (recipient.id === me.id) {
+
+    status.textContent =
+      "tu peux pas t'envoyer un message a toi-meme";
+
+    return;
+
+  }
+
+
+  const myUsername =
+    me.user_metadata?.pseudo ||
+    localStorage.getItem("pseudo") ||
+    "anonymous";
+
+
+  const { error } =
+    await supabaseClient
+      .from("direct_messages")
+      .insert({
+
+        sender_id: me.id,
+
+        recipient_id: recipient.id,
+
+        sender_username: myUsername,
+
+        recipient_username: recipient.username,
+
+        content: text
+
+      });
+
+
+  if (error) {
+
+    console.error(error);
+
+    status.textContent =
+      "erreur: message non envoye";
+
+    return;
+
+  }
+
+
+  msg.value = "";
+
+  status.textContent =
+    "message envoye !";
+
+  await showDM();
+
+  setTimeout(() => {
+
+    status.textContent = "";
+
+  }, 1500);
+
+}
+
+
+
+async function showDM() {
+
+  if (!me) return;
+
+
+  const { data, error } =
+    await supabaseClient
+      .from("direct_messages")
+      .select("*")
+      .order(
+        "created_at",
+        { ascending: true }
+      );
+
+
+  if (error) {
+
+    console.error(error);
+
+    chat.innerHTML =
+      "<div class='box'>" +
+      "erer de chargamen" +
+      "</div>";
+
+    return;
+
+  }
+
+
+  if (!data || data.length === 0) {
+
+    chat.innerHTML =
+      "<div class='box'>pas de mesag</div>";
+
+    return;
+
+  }
+
+
+  chat.innerHTML =
+    data.map(x => {
+
+      return (
+        "<p>" +
+        "<b>" +
+        esc(x.sender_username) +
+        " → " +
+        esc(x.recipient_username) +
+        "</b>: " +
+        esc(x.content) +
+        "</p>"
+      );
+
+    }).join("");
+
+}
+
+
+
+msg.addEventListener(
+  "keydown",
+  function(event) {
+
+    if (event.key === "Enter") {
+      sendDM();
+    }
+
+  }
+);
+
+
+
+
+async function start() {
+
+  const ok = await getMe();
+
+  if (ok) {
+    await showDM();
+  }
+
+}
+
+start();
+
 </script>
-</body></html>
+
+</body>
+</html>
+```
