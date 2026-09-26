@@ -1,18 +1,227 @@
+```html
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><title>forum</title><link rel="stylesheet" href="style.css"><script src="theme.js"></script></head>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>forum</title>
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
 <body>
-<h1> forsun</h1>
-<div class="box"><p id="welcome"></p><input id="msg" placeholder="ecri ton mesag"><button onclick="send()">envoyer</button></div>
+
+<h1> forum</h1>
+
+<div class="box">
+  <p id="welcome"></p>
+
+  <input id="msg" placeholder="ecri ton mesag">
+  <button onclick="send()">envoyer</button>
+
+  <p id="status"></p>
+</div>
+
 <div id="chat"></div>
-<a class="nav" href="index.html">accueil</a><a class="nav" href="profil.html">profil</a>
+
+<a class="nav" href="index.html">accueil</a>
+<a class="nav" href="profil.html">profil</a>
+
 <script>
-const user=localStorage.getItem("pseudo")||"anonymous";
-const avatar=localStorage.getItem("avatar");
-welcome.textContent="connecte: "+user;
-let posts=JSON.parse(localStorage.getItem("posts")||"[]");
-function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
-function render(){chat.innerHTML=posts.map(p=>"<p>"+(p.avatar?'<img class=\"avatar\" style=\"width:40px;height:40px;vertical-align:middle\" src=\"'+p.avatar+'\"> ':'')+"<b>"+esc(p.user)+":</b> "+esc(p.text)+"</p>").join("")||"<div class='box'>pa de mesag</div>";}
-function send(){const t=msg.value.trim();if(!t)return;posts.push({user,avatar,text:t});localStorage.setItem("posts",JSON.stringify(posts));msg.value="";render();}
-render();
+
+
+
+const SUPABASE_URL =
+  "https://cwmlajtwhriqjoopknsp.supabase.co";
+
+const SUPABASE_KEY =
+  "sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+
+const supabaseClient =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+
+
+
+const user =
+  localStorage.getItem("pseudo") || "anonymous";
+
+const avatar =
+  localStorage.getItem("avatar") || null;
+
+welcome.textContent =
+  "connecte: " + user;
+
+
+
+function esc(s) {
+
+  return String(s).replace(
+    /[&<>"']/g,
+    c => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c])
+  );
+
+}
+
+
+function render(posts) {
+
+  if (!posts || posts.length === 0) {
+
+    chat.innerHTML =
+      "<div class='box'>pa de mesag</div>";
+
+    return;
+  }
+
+  chat.innerHTML = posts.map(p => {
+
+    const safeUser = esc(p.username);
+    const safeText = esc(p.content);
+
+    let avatarHTML = "";
+
+    if (p.avatar) {
+
+      avatarHTML =
+        '<img class="avatar" ' +
+        'style="width:40px;height:40px;vertical-align:middle" ' +
+        'src="' + esc(p.avatar) + '"> ';
+
+    }
+
+    return (
+      "<p>" +
+      avatarHTML +
+      "<b>" + safeUser + ":</b> " +
+      safeText +
+      "</p>"
+    );
+
+  }).join("");
+
+}
+
+
+
+
+async function loadPosts() {
+
+  status.textContent =
+    "chargement...";
+
+  const { data, error } =
+    await supabaseClient
+      .from("forum_posts")
+      .select("*")
+      .order(
+        "created_at",
+        { ascending: true }
+      );
+
+  if (error) {
+
+    console.error(error);
+
+    status.textContent =
+      "erreur: impossible de charger le forum";
+
+    chat.innerHTML =
+      "<div class='box'>" +
+      "<b>Erreur Supabase</b><br>" +
+      esc(error.message) +
+      "</div>";
+
+    return;
+  }
+
+  render(data);
+
+  status.textContent = "";
+
+}
+
+
+
+async function send() {
+
+  const text =
+    msg.value.trim();
+
+  if (!text) return;
+
+  status.textContent =
+    "envoi...";
+
+  const { error } =
+    await supabaseClient
+      .from("forum_posts")
+      .insert({
+        username: user,
+        avatar: avatar,
+        content: text
+      });
+
+  if (error) {
+
+    console.error(error);
+
+    status.textContent =
+      "erreur: message non envoye";
+
+    alert(
+      "Erreur Supabase:\n\n" +
+      error.message
+    );
+
+    return;
+  }
+
+  msg.value = "";
+
+  await loadPosts();
+
+  status.textContent =
+    "envoye !";
+
+  setTimeout(() => {
+
+    status.textContent = "";
+
+  }, 1500);
+
+}
+
+
+
+
+msg.addEventListener(
+  "keydown",
+  function(event) {
+
+    if (event.key === "Enter") {
+      send();
+    }
+
+  }
+);
+
+
+
+loadPosts();
+
 </script>
-</body></html>
+
+</body>
+</html>
+```
