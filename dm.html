@@ -18,19 +18,33 @@
 
 <div class="box">
 
-<input id="to" placeholder="pseudo a qui"><br>
+<p id="status">
+connexion...
+</p>
 
-<input id="msg" placeholder="ton mesag">
+<input
+  id="to"
+  placeholder="pseudo à qui"
+>
 
-<button onclick="sendDM()">envoyer</button>
+<br><br>
 
-<p id="status"></p>
+<input
+  id="msg"
+  placeholder="ton message"
+>
+
+<button onclick="sendDM()">
+  envoyer
+</button>
 
 </div>
 
 <div id="chat"></div>
 
-<a class="nav" href="index.html">accueil</a>
+<a class="nav" href="index.html">
+  accueil
+</a>
 
 <script>
 
@@ -47,6 +61,19 @@ window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
+
+
+
+const status =
+document.getElementById("status");
+
+const chat =
+document.getElementById("chat");
+
+
+let currentUser = null;
+let myUsername = "";
+
 
 
 
@@ -67,29 +94,97 @@ function esc(s) {
 
 
 
+async function start() {
 
-let me = null;
+  status.textContent =
+    "vérification de la connexion...";
 
 
+  const {
+    data: {
+      session
+    }
+  } =
+    await supabaseClient.auth.getSession();
 
-async function getMe() {
 
-  const { data, error } =
-    await supabaseClient.auth.getUser();
+  if (!session || !session.user) {
 
-  if (error || !data.user) {
+    status.textContent =
+      "pas connecté";
 
     chat.innerHTML =
       "<div class='box'>" +
-      "connecte-toi pour utiliser les messages" +
+      "Tu dois être connecté pour utiliser les messages." +
+      "<br><br>" +
+      "<a class='nav' href='login.html'>se connecter</a>" +
       "</div>";
 
-    return false;
+    return;
+
   }
 
-  me = data.user;
 
-  return true;
+  currentUser =
+    session.user;
+
+
+  myUsername =
+    currentUser.user_metadata?.pseudo ||
+    localStorage.getItem("pseudo") ||
+    "anonymous";
+
+
+  localStorage.setItem(
+    "pseudo",
+    myUsername
+  );
+
+
+  /*
+    Make sure the user exists
+    in the profiles table.
+  */
+
+  const {
+    error: profileError
+  } =
+    await supabaseClient
+      .from("profiles")
+      .upsert(
+        {
+          id: currentUser.id,
+          username: myUsername
+        },
+        {
+          onConflict: "id"
+        }
+      );
+
+
+  if (profileError) {
+
+    console.error(profileError);
+
+    status.textContent =
+      "connecté";
+
+    console.warn(
+      "Profil non créé:",
+      profileError.message
+    );
+
+  } else {
+
+    status.textContent =
+      "connecté en tant que " +
+      myUsername;
+
+  }
+
+
+  await showDM();
+
 }
 
 
@@ -97,18 +192,25 @@ async function getMe() {
 
 async function findUser(username) {
 
-  const { data, error } =
+  const {
+    data,
+    error
+  } =
     await supabaseClient
       .from("profiles")
       .select("id, username")
       .eq("username", username)
-      .single();
+      .maybeSingle();
 
-  if (error || !data) {
+
+  if (error) {
+
+    console.error(error);
 
     return null;
 
   }
+
 
   return data;
 
@@ -116,72 +218,88 @@ async function findUser(username) {
 
 
 
-
 async function sendDM() {
 
-  const username =
-    to.value.trim();
+  if (!currentUser) {
 
-  const text =
-    msg.value.trim();
+    alert(
+      "Connecte-toi d'abord."
+    );
 
-  if (!username || !text) return;
-
-  if (!me) {
-
-    alert("connecte-toi d'abord");
     return;
 
   }
 
-  status.textContent =
-    "recherche du pseudo...";
+
+  const recipientUsername =
+    document.getElementById("to")
+      .value
+      .trim();
+
+
+  const message =
+    document.getElementById("msg")
+      .value
+      .trim();
+
+
+  if (!recipientUsername || !message) {
+
+    return;
+
+  }
+
+
+  if (
+    recipientUsername.toLowerCase() ===
+    myUsername.toLowerCase()
+  ) {
+
+    alert(
+      "Tu ne peux pas t'envoyer un message à toi-même."
+    );
+
+    return;
+
+  }
 
 
   const recipient =
-    await findUser(username);
+    await findUser(recipientUsername);
 
 
   if (!recipient) {
 
-    status.textContent =
-      "pseudo introuvable";
+    alert(
+      "Utilisateur introuvable."
+    );
 
     return;
 
   }
 
 
-  if (recipient.id === me.id) {
-
-    status.textContent =
-      "tu peux pas t'envoyer un message a toi-meme";
-
-    return;
-
-  }
-
-
-  const myUsername =
-    me.user_metadata?.pseudo ||
-    localStorage.getItem("pseudo") ||
-    "anonymous";
-
-
-  const { error } =
+  const {
+    error
+  } =
     await supabaseClient
       .from("direct_messages")
       .insert({
 
-        sender_id: me.id,
+        sender_id:
+          currentUser.id,
 
-        recipient_id: recipient.id,
+        recipient_id:
+          recipient.id,
 
-        sender_username: myUsername,
+        sender_username:
+          myUsername,
 
-        recipient_username: recipient.username,
+        recipient_username:
+          recipient.username,
 
-        content: text
+        content:
+          message
 
       });
 
@@ -190,26 +308,20 @@ async function sendDM() {
 
     console.error(error);
 
-    status.textContent =
-      "erreur: message non envoye";
+    alert(
+      "Impossible d'envoyer le message:\n\n" +
+      error.message
+    );
 
     return;
 
   }
 
 
-  msg.value = "";
-
-  status.textContent =
-    "message envoye !";
+  document.getElementById("msg")
+    .value = "";
 
   await showDM();
-
-  setTimeout(() => {
-
-    status.textContent = "";
-
-  }, 1500);
 
 }
 
@@ -217,16 +329,23 @@ async function sendDM() {
 
 async function showDM() {
 
-  if (!me) return;
+  if (!currentUser) {
+    return;
+  }
 
 
-  const { data, error } =
+  const {
+    data,
+    error
+  } =
     await supabaseClient
       .from("direct_messages")
       .select("*")
       .order(
         "created_at",
-        { ascending: true }
+        {
+          ascending: true
+        }
       );
 
 
@@ -236,7 +355,8 @@ async function showDM() {
 
     chat.innerHTML =
       "<div class='box'>" +
-      "erer de chargamen" +
+      "Erreur: " +
+      esc(error.message) +
       "</div>";
 
     return;
@@ -244,10 +364,20 @@ async function showDM() {
   }
 
 
-  if (!data || data.length === 0) {
+  const messages =
+    (data || []).filter(
+      message =>
+        message.sender_id === currentUser.id ||
+        message.recipient_id === currentUser.id
+    );
+
+
+  if (messages.length === 0) {
 
     chat.innerHTML =
-      "<div class='box'>pas de mesag</div>";
+      "<div class='box'>" +
+      "pas de mesag" +
+      "</div>";
 
     return;
 
@@ -255,53 +385,20 @@ async function showDM() {
 
 
   chat.innerHTML =
-    data.map(x => {
+    messages.map(message => {
 
-      return (
-        "<p>" +
-        "<b>" +
-        esc(x.sender_username) +
-        " → " +
-        esc(x.recipient_username) +
-        "</b>: " +
-        esc(x.content) +
-        "</p>"
-      );
+      return `
+        <div class="box">
 
-    }).join("");
+          <b>
+            ${esc(message.sender_username)}
+            →
+            ${esc(message.recipient_username)}
+          </b>
 
-}
+          <p>
+            ${esc(message.content)}
+          </p>
 
-
-
-msg.addEventListener(
-  "keydown",
-  function(event) {
-
-    if (event.key === "Enter") {
-      sendDM();
-    }
-
-  }
-);
-
-
-
-
-async function start() {
-
-  const ok = await getMe();
-
-  if (ok) {
-    await showDM();
-  }
-
-}
-
-start();
-
-</script>
-
-</body>
-</html>
+        </div>
 ```
