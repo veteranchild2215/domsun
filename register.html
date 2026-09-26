@@ -4,7 +4,7 @@
 
 <head>
 <meta charset="utf-8">
-<title>Créer un compte - domsun</title>
+<title>register</title>
 
 <link rel="stylesheet" href="style.css">
 <script src="theme.js"></script>
@@ -14,65 +14,43 @@
 
 <body>
 
-<h1>Créer un compte</h1>
+<h1>cree compte</h1>
 
 <div class="box">
 
-<input
-  id="pseudo"
-  type="text"
-  placeholder="pseudo"
-  required
->
-
+<input id="pseudo" placeholder="ton pseudo">
 <br><br>
 
-<input
-  id="email"
-  type="email"
-  placeholder="email"
-  required
->
-
+<input id="email" type="email" placeholder="email">
 <br><br>
 
-<input
-  id="pass"
-  type="password"
-  placeholder="mot de passe"
-  required
->
-
+<input id="pass" type="password" placeholder="mot de passe">
 <br><br>
 
-<input
-  id="confirmPass"
-  type="password"
-  placeholder="confirme ton mot de passe"
-  required
->
-
+<input id="confirmPass" type="password" placeholder="confirme mot de passe">
 <br><br>
 
-<button onclick="register()">
-  créer mon compte
-</button>
+<button onclick="reg()">creer compte</button>
 
 <p id="msg"></p>
 
 </div>
 
-<a class="nav" href="index.html">
-  ⬅ accueil
-</a>
+<a class="nav" href="login.html">login</a>
+<a class="nav" href="index.html">accueil</a>
+
 
 <script>
+
+
 
 const SUPABASE_URL =
 "https://cwmlajtwhriqjoopknsp.supabase.co";
 
+
 const SUPABASE_KEY =
 "sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+
 
 const supabaseClient =
 window.supabase.createClient(
@@ -81,59 +59,82 @@ window.supabase.createClient(
 );
 
 
-async function register() {
+
+async function reg() {
 
   const pseudo =
-    document.getElementById("pseudo").value.trim();
+    document.getElementById("pseudo")
+      .value.trim();
 
   const email =
-    document.getElementById("email").value.trim();
+    document.getElementById("email")
+      .value.trim();
 
   const pass =
-    document.getElementById("pass").value;
+    document.getElementById("pass")
+      .value;
 
   const confirmPass =
-    document.getElementById("confirmPass").value;
+    document.getElementById("confirmPass")
+      .value;
 
   const msg =
     document.getElementById("msg");
 
 
+  /* Check fields */
+
   if (!pseudo || !email || !pass || !confirmPass) {
 
     msg.textContent =
-      "Remplis tous les champs.";
+      "non rempli";
 
     return;
-
   }
 
 
-  if (pass !== confirmPass) {
+  /* Check email */
+
+  if (!email.includes("@")) {
 
     msg.textContent =
-      "Les mots de passe ne correspondent pas.";
+      "email invalide";
 
     return;
-
   }
 
+
+  /* Check password */
 
   if (pass.length < 6) {
 
     msg.textContent =
-      "Le mot de passe doit contenir au moins 6 caractères.";
+      "mot de passe trop court (6 caracteres minimum)";
 
     return;
+  }
 
+
+  /* Check confirmation */
+
+  if (pass !== confirmPass) {
+
+    msg.textContent =
+      "les mots de passe sont differents";
+
+    return;
   }
 
 
   msg.textContent =
-    "Création du compte...";
+    "creation du compte...";
 
 
-  const { data, error } =
+
+  const {
+    data,
+    error
+  } =
     await supabaseClient.auth.signUp({
 
       email: email,
@@ -141,11 +142,9 @@ async function register() {
       password: pass,
 
       options: {
-
         data: {
           pseudo: pseudo
         }
-
       }
 
     });
@@ -156,10 +155,9 @@ async function register() {
     console.error(error);
 
     msg.textContent =
-      "Erreur : " + error.message;
+      error.message;
 
     return;
-
   }
 
 
@@ -174,8 +172,32 @@ async function register() {
   );
 
 
+  if (data.user) {
+
+    const {
+      error: profileError
+    } =
+    await supabaseClient
+      .from("profiles")
+      .insert({
+
+        id: data.user.id,
+
+        username: pseudo
+
+      });
+
+
+    if (profileError) {
+
+      console.error(profileError);
+
+   
+
+
+
   msg.textContent =
-    "Compte créé !";
+    "compte cree !";
 
 
   setTimeout(() => {
@@ -183,7 +205,7 @@ async function register() {
     window.location.href =
       "profil.html";
 
-  }, 800);
+  }, 700);
 
 }
 
