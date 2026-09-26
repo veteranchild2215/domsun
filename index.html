@@ -38,7 +38,7 @@
 function boom(){
  document.body.innerHTML='<div style="padding-top:20vh"><h1 style="color:#2b67ce;font-size:70px">erreur site</h1><p></p><a class="nav" href="index.html">retour</a></div>';
 }
-let secret="", target="SPAC3 1NVAD3RS";
+let secret="", target="space";
 document.addEventListener("keydown",e=>{
   if(e.key.length===1) secret+=e.key.toUpperCase();
   if(secret.length>target.length) secret=secret.slice(-target.length);
