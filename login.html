@@ -1,25 +1,84 @@
+```html
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><title>login</title><link rel="stylesheet" href="style.css"><script src="theme.js"></script></head>
+<html lang="fr">
+
+<head>
+<meta charset="utf-8">
+<title>login</title>
+
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
 <body>
+
 <h1>connexion</h1>
+
 <div class="box">
+
 <input id="email" type="email" placeholder="email"><br>
-<input id="pass" type="password" placeholder="mot de passe"><br>
+
+<input id="pass" type="password" placeholder="mo 2 pas"><br>
+
 <button onclick="login()">entrer</button>
+
 <p id="msg"></p>
+
 </div>
+
 <a class="nav" href="register.html">creer compte</a>
 <a class="nav" href="index.html">accueil</a>
+
 <script>
-function login(){
-  const email=document.getElementById("email").value.trim();
-  const pass=document.getElementById("pass").value;
-  const account=JSON.parse(localStorage.getItem("domsunAccount")||"null");
-  if(!account){msg.textContent="pas de compte ici";return;}
-  if(account.email===email && account.pass===pass){
-    localStorage.setItem("logged","1"); localStorage.setItem("pseudo",account.pseudo);
-    location.href="index.html";
-  }else msg.textContent="email ou mdp pa bo";
-}
-</script>
-</body></html>
+
+/* SUPABASE */
+
+const SUPABASE_URL =
+"https://cwmlajtwhriqjoopknsp.supabase.co";
+
+const SUPABASE_KEY =
+"sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+
+const supabaseClient =
+window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+
+
+
+async function login() {
+
+  const email =
+    document.getElementById("email").value.trim();
+
+  const pass =
+    document.getElementById("pass").value;
+
+  if (!email || !pass) {
+
+    msg.textContent = "no rempi";
+    return;
+
+  }
+
+  msg.textContent = "conexion...";
+
+
+  const { data, error } =
+    await supabaseClient.auth.signInWithPassword({
+
+      email: email,
+
+      password: pass
+
+    });
+
+
+  if (error) {
+
+    console.err
+```
