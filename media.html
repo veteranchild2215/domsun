@@ -29,6 +29,18 @@
   ajouter
 </button>
 
+<h2>video / audio</h2>
+
+<input
+  type="file"
+  id="file"
+  accept="video/*,audio/*"
+>
+
+<button onclick="addFile()">
+  ajouter
+</button>
+
 <p id="status"></p>
 
 </div>
@@ -36,10 +48,11 @@
 <div id="videos"></div>
 
 <a class="nav" href="index.html">
-   accueil
+  ⬅ accueil
 </a>
 
 <script>
+
 
 
 const SUPABASE_URL =
@@ -56,11 +69,13 @@ window.supabase.createClient(
 
 
 
+
 const container =
 document.getElementById("videos");
 
 const status =
 document.getElementById("status");
+
 
 
 
@@ -81,18 +96,30 @@ function esc(s) {
 
 
 
+
 function getYoutubeID(link) {
 
   try {
 
     const u = new URL(link);
 
-    if (u.hostname.includes("youtu.be")) {
-      return u.pathname.slice(1);
+    if (
+      u.hostname === "youtu.be" ||
+      u.hostname === "www.youtu.be"
+    ) {
+
+      return u.pathname
+        .replace("/", "")
+        .split("?")[0];
+
     }
 
-    if (u.hostname.includes("youtube.com")) {
+    if (
+      u.hostname.includes("youtube.com")
+    ) {
+
       return u.searchParams.get("v") || "";
+
     }
 
   } catch (e) {}
@@ -103,17 +130,23 @@ function getYoutubeID(link) {
 
 
 
+
 async function addYT() {
 
+  const input =
+    document.getElementById("ytlink");
+
   const link =
-    ytlink.value.trim();
+    input.value.trim();
 
   const id =
     getYoutubeID(link);
 
   if (!id) {
 
-    alert("lien youtube pa compris");
+    alert(
+      "Lien YouTube pas compris."
+    );
 
     return;
 
@@ -121,7 +154,6 @@ async function addYT() {
 
   status.textContent =
     "ajout...";
-
 
   const username =
     localStorage.getItem("pseudo") ||
@@ -148,11 +180,10 @@ async function addYT() {
 
     console.error(error);
 
-    status.textContent =
-      "erreur: impossible d'ajouter";
+    status.textContent = "";
 
     alert(
-      "Erreur Supabase:\n\n" +
+      "Impossible d'ajouter la vidéo :\n\n" +
       error.message
     );
 
@@ -161,10 +192,10 @@ async function addYT() {
   }
 
 
-  ytlink.value = "";
+  input.value = "";
 
   status.textContent =
-    "ajoute !";
+    "video ajoutee !";
 
   await loadMedia();
 
@@ -176,6 +207,92 @@ async function addYT() {
   }, 1500);
 
 }
+
+
+
+
+function addFile() {
+
+  const f =
+    document.getElementById("file").files[0];
+
+  if (!f) {
+
+    alert(
+      "Choisis une video ou un audio."
+    );
+
+    return;
+
+  }
+
+
+  const url =
+    URL.createObjectURL(f);
+
+
+  const box =
+    document.createElement("div");
+
+  box.className = "box";
+
+
+  const title =
+    document.createElement("p");
+
+  title.innerHTML =
+    "<b>" + esc(f.name) + "</b>";
+
+  box.appendChild(title);
+
+
+  if (f.type.startsWith("video")) {
+
+    const video =
+      document.createElement("video");
+
+    video.controls = true;
+
+    video.src = url;
+
+    video.style.maxWidth = "100%";
+
+    box.appendChild(video);
+
+  }
+
+
+  else if (f.type.startsWith("audio")) {
+
+    const audio =
+      document.createElement("audio");
+
+    audio.controls = true;
+
+    audio.src = url;
+
+    box.appendChild(audio);
+
+  }
+
+
+  else {
+
+    URL.revokeObjectURL(url);
+
+    alert(
+      "Format non supporté."
+    );
+
+    return;
+
+  }
+
+
+  container.prepend(box);
+
+}
+
 
 
 
@@ -202,7 +319,9 @@ async function reportMedia(mediaId) {
 
 
   if (!reason || !reason.trim()) {
+
     return;
+
   }
 
 
@@ -272,51 +391,52 @@ async function loadMedia() {
 
   if (!data || data.length === 0) {
 
-    container.innerHTML =
-      "<div class='box'>" +
-      "pa encore de video" +
-      "</div>";
-
     return;
 
   }
 
 
-  container.innerHTML =
-    data.map(item => {
+  data.forEach(item => {
 
-      if (item.type !== "youtube") {
-        return "";
-      }
+    if (item.type !== "youtube") {
+
+      return;
+
+    }
 
 
-      return `
-        <div class="box">
+    const box =
+      document.createElement("div");
 
-          <p>
-            ajoute par:
-            <b>${esc(item.username)}</b>
-          </p>
+    box.className = "box";
 
-          <iframe
-            width="560"
-            height="315"
-            src="https://www.youtube.com/embed/${encodeURIComponent(item.url)}"
-            frameborder="0"
-            allowfullscreen>
-          </iframe>
 
-          <br><br>
+    box.innerHTML = `
+      <p>
+        ajoute par:
+        <b>${esc(item.username)}</b>
+      </p>
 
-          <button
-            onclick="reportMedia(${item.id})">
-            Signaler cette video
-          </button>
+      <iframe
+        width="560"
+        height="315"
+        src="https://www.youtube.com/embed/${encodeURIComponent(item.url)}"
+        frameborder="0"
+        allowfullscreen>
+      </iframe>
 
-        </div>
-      `;
+      <br><br>
 
-    }).join("");
+      <button
+        onclick="reportMedia(${item.id})">
+        Signaler cette video
+      </button>
+    `;
+
+
+    container.appendChild(box);
+
+  });
 
 }
 
@@ -328,4 +448,3 @@ loadMedia();
 </body>
 </html>
 ```
-
