@@ -24,14 +24,14 @@ connexion...
 
 <input
   id="to"
-  placeholder="pseudo à qui"
+  placeholder="pseudo a qui"
 >
 
 <br><br>
 
 <input
   id="msg"
-  placeholder="ton message"
+  placeholder="ton mesag"
 >
 
 <button onclick="sendDM()">
@@ -46,15 +46,21 @@ connexion...
   accueil
 </a>
 
-<script>
 
+<script>
 
 
 const SUPABASE_URL =
 "https://cwmlajtwhriqjoopknsp.supabase.co";
 
+/*
+   PASTE YOUR SUPABASE
+   PUBLISHABLE KEY HERE
+*/
+
 const SUPABASE_KEY =
 "sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+
 
 const supabaseClient =
 window.supabase.createClient(
@@ -64,15 +70,8 @@ window.supabase.createClient(
 
 
 
-const status =
-document.getElementById("status");
-
-const chat =
-document.getElementById("chat");
-
-
 let currentUser = null;
-let myUsername = "";
+let currentUsername = null;
 
 
 
@@ -81,6 +80,7 @@ function esc(s) {
 
   return String(s).replace(
     /[&<>"']/g,
+
     c => ({
       "&": "&amp;",
       "<": "&lt;",
@@ -88,48 +88,57 @@ function esc(s) {
       '"': "&quot;",
       "'": "&#39;"
     }[c])
+
   );
 
 }
 
 
 
+
 async function start() {
 
-  status.textContent =
-    "vérification de la connexion...";
+  const status =
+    document.getElementById("status");
 
+
+  /* Get Supabase session */
 
   const {
-    data: {
-      session
-    }
+    data,
+    error
   } =
     await supabaseClient.auth.getSession();
 
 
-  if (!session || !session.user) {
+  if (error) {
+
+    console.error(error);
 
     status.textContent =
-      "pas connecté";
-
-    chat.innerHTML =
-      "<div class='box'>" +
-      "Tu dois être connecté pour utiliser les messages." +
-      "<br><br>" +
-      "<a class='nav' href='login.html'>se connecter</a>" +
-      "</div>";
+      "erreur de connexion";
 
     return;
-
   }
 
 
+  /* No session */
+
+  if (!data.session) {
+
+    status.textContent =
+      "pas connecte a Supabase. Connecte-toi avec login.";
+
+    return;
+  }
+
+
+
   currentUser =
-    session.user;
+    data.session.user;
 
 
-  myUsername =
+  currentUsername =
     currentUser.user_metadata?.pseudo ||
     localStorage.getItem("pseudo") ||
     "anonymous";
@@ -137,48 +146,56 @@ async function start() {
 
   localStorage.setItem(
     "pseudo",
-    myUsername
+    currentUsername
+  );
+
+  localStorage.setItem(
+    "logged",
+    "1"
   );
 
 
-  /*
-    Make sure the user exists
-    in the profiles table.
-  */
+  status.textContent =
+    "connecte en tant que " +
+    currentUsername;
+
+
+ 
 
   const {
-    error: profileError
+    data: profile
   } =
     await supabaseClient
       .from("profiles")
-      .upsert(
-        {
-          id: currentUser.id,
-          username: myUsername
-        },
-        {
-          onConflict: "id"
-        }
+      .select("id, username")
+      .eq("id", currentUser.id)
+      .maybeSingle();
+
+
+  if (!profile) {
+
+    const {
+      error: profileError
+    } =
+    await supabaseClient
+      .from("profiles")
+      .insert({
+
+        id: currentUser.id,
+
+        username: currentUsername
+
+      });
+
+
+    if (profileError) {
+
+      console.error(
+        "profile error:",
+        profileError
       );
 
-
-  if (profileError) {
-
-    console.error(profileError);
-
-    status.textContent =
-      "connecté";
-
-    console.warn(
-      "Profil non créé:",
-      profileError.message
-    );
-
-  } else {
-
-    status.textContent =
-      "connecté en tant que " +
-      myUsername;
+    }
 
   }
 
@@ -186,7 +203,6 @@ async function start() {
   await showDM();
 
 }
-
 
 
 
@@ -208,7 +224,6 @@ async function findUser(username) {
     console.error(error);
 
     return null;
-
   }
 
 
@@ -223,59 +238,55 @@ async function sendDM() {
   if (!currentUser) {
 
     alert(
-      "Connecte-toi d'abord."
+      "tu dois etre connecte"
     );
 
     return;
-
   }
 
 
-  const recipientUsername =
-    document.getElementById("to")
-      .value
-      .trim();
-
+  const to =
+    document
+      .getElementById("to")
+      .value.trim();
 
   const message =
-    document.getElementById("msg")
-      .value
-      .trim();
+    document
+      .getElementById("msg")
+      .value.trim();
 
 
-  if (!recipientUsername || !message) {
+  if (!to || !message) {
 
     return;
-
   }
 
 
-  if (
-    recipientUsername.toLowerCase() ===
-    myUsername.toLowerCase()
-  ) {
-
-    alert(
-      "Tu ne peux pas t'envoyer un message à toi-même."
-    );
-
-    return;
-
-  }
-
+  /* Find recipient */
 
   const recipient =
-    await findUser(recipientUsername);
+    await findUser(to);
 
 
   if (!recipient) {
 
     alert(
-      "Utilisateur introuvable."
+      "ce pseudo n'existe pas"
     );
 
     return;
+  }
 
+
+  /* Don't message yourself */
+
+  if (recipient.id === currentUser.id) {
+
+    alert(
+      "tu ne peux pas t'envoyer un message"
+    );
+
+    return;
   }
 
 
@@ -293,7 +304,7 @@ async function sendDM() {
           recipient.id,
 
         sender_username:
-          myUsername,
+          currentUsername,
 
         recipient_username:
           recipient.username,
@@ -309,29 +320,32 @@ async function sendDM() {
     console.error(error);
 
     alert(
-      "Impossible d'envoyer le message:\n\n" +
-      error.message
+      "erreur: " + error.message
     );
 
     return;
-
   }
 
 
   document.getElementById("msg")
     .value = "";
 
+
   await showDM();
 
 }
 
 
-
 async function showDM() {
 
   if (!currentUser) {
+
     return;
   }
+
+
+  const chat =
+    document.getElementById("chat");
 
 
   const {
@@ -341,6 +355,12 @@ async function showDM() {
     await supabaseClient
       .from("direct_messages")
       .select("*")
+      .or(
+        "sender_id.eq." +
+        currentUser.id +
+        ",recipient_id.eq." +
+        currentUser.id
+      )
       .order(
         "created_at",
         {
@@ -354,51 +374,59 @@ async function showDM() {
     console.error(error);
 
     chat.innerHTML =
-      "<div class='box'>" +
-      "Erreur: " +
-      esc(error.message) +
-      "</div>";
+      "<div class='box'>erreur chargement des messages</div>";
 
     return;
-
   }
 
 
-  const messages =
-    (data || []).filter(
-      message =>
-        message.sender_id === currentUser.id ||
-        message.recipient_id === currentUser.id
-    );
-
-
-  if (messages.length === 0) {
+  if (!data || data.length === 0) {
 
     chat.innerHTML =
-      "<div class='box'>" +
-      "pas de mesag" +
-      "</div>";
+      "<div class='box'>pas de mesag</div>";
 
     return;
-
   }
 
 
   chat.innerHTML =
-    messages.map(message => {
+    data.map(x => {
+
+      const date =
+        new Date(
+          x.created_at
+        ).toLocaleString();
+
 
       return `
         <div class="box">
-
-          <b>
-            ${esc(message.sender_username)}
-            →
-            ${esc(message.recipient_username)}
-          </b>
-
           <p>
-            ${esc(message.content)}
+            <b>
+              ${esc(x.sender_username)}
+              →
+              ${esc(x.recipient_username)}
+            </b>
           </p>
 
+          <p>
+            ${esc(x.content)}
+          </p>
+
+          <small>
+            ${esc(date)}
+          </small>
         </div>
+      `;
+
+    }).join("");
+
+}
+
+
+start();
+
+</script>
+
+</body>
+</html>
 ```
