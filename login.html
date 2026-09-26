@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="style.css">
 <script src="theme.js"></script>
 
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -18,144 +19,49 @@
 
 <div class="box">
 
-<input
-  id="email"
-  type="email"
-  placeholder="email"
->
+<input id="email" type="email" placeholder="email"><br>
 
-<br><br>
+<input id="pass" type="password" placeholder="mot de passe"><br>
 
-<input
-  id="pass"
-  type="password"
-  placeholder="mot de passe"
->
-
-<br><br>
-
-<button onclick="login()">
-  entrer
-</button>
+<button onclick="login()">entrer</button>
 
 <p id="msg"></p>
 
 </div>
 
-<a class="nav" href="register.html">
-  creer compte
-</a>
-
-<a class="nav" href="index.html">
-  accueil
-</a>
-
+<a class="nav" href="register.html">creer compte</a>
+<a class="nav" href="index.html">accueil</a>
 
 <script>
 
-const SUPABASE_URL =
-"https://cwmlajtwhriqjoopknsp.supabase.co";
 
 
+const SUPABASE_URL = "https://cwmlajtwhriqjoopknsp.supabase.co";
 
-const SUPABASE_KEY =
-"sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+const SUPABASE_KEY = "sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
 
-
-const supabaseClient =
-window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
+const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
 );
 
 
 
-async function login() {
 
-  const email =
-    document.getElementById("email")
-      .value.trim();
+async function login(){
 
-  const pass =
-    document.getElementById("pass")
-      .value;
+    const email = document.getElementById("email").value.trim();
+    const pass = document.getElementById("pass").value;
+    const msg = document.getElementById("msg");
 
-  const msg =
-    document.getElementById("msg");
+    msg.textContent = "";
 
+    if(!email || !pass){
+        msg.textContent = "rempli ton email et ton mot de passe";
+        return;
+    }
 
-  if (!email || !pass) {
+    msg.textContent = "connexion...";
 
-    msg.textContent =
-      "remplis tous les champs";
-
-    return;
-  }
-
-
-  msg.textContent =
-    "connexion...";
-
-
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient.auth.signInWithPassword({
-
-      email: email,
-
-      password: pass
-
-    });
-
-
-  if (error) {
-
-    console.error(error);
-
-    msg.textContent =
-      error.message;
-
-    return;
-  }
-
-
-
-  const pseudo =
-    data.user.user_metadata?.pseudo ||
-    "anonymous";
-
-
-
-  localStorage.setItem(
-    "pseudo",
-    pseudo
-  );
-
-  localStorage.setItem(
-    "logged",
-    "1"
-  );
-
-
-
-  msg.textContent =
-    "connecte !";
-
-
-  setTimeout(() => {
-
-    window.location.href =
-      "index.html";
-
-  }, 500);
-
-}
-
-</script>
-
-</body>
-</html>
+    const { data, error } =
 ```
