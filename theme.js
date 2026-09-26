@@ -1,6 +1,6 @@
 (function () {
-  const THEMES = ["xp_bleu.css","xp_vert.css","xp_rose.css","xp_gris.css","xp_noir.css"];
-  const DEFAULT_THEME = "xp_bleu.css";
+  const THEMES = ["xp_bleu.css","xp_vert.css","xp_rose.css","xp_gris.css","xp_noir.css,"mono.css"];
+  const DEFAULT_THEME = "mono.css";
   function getThemeLink() {
     let link = document.getElementById("domsun-theme");
     if (!link) { link = document.createElement("link"); link.id = "domsun-theme"; link.rel = "stylesheet"; document.head.appendChild(link); }
