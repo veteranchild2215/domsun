@@ -4,11 +4,12 @@
 
 <head>
 <meta charset="utf-8">
-<title>register</title>
+<title>cree compte</title>
 
 <link rel="stylesheet" href="style.css">
 <script src="theme.js"></script>
 
+<!-- Supabase -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -18,19 +19,15 @@
 
 <div class="box">
 
-<input id="pseudo" placeholder="ton pseudo">
-<br><br>
+<input id="pseudo" placeholder="ton pseudo"><br>
 
-<input id="email" type="email" placeholder="email">
-<br><br>
+<input id="email" type="email" placeholder="email"><br>
 
-<input id="pass" type="password" placeholder="mot de passe">
-<br><br>
+<input id="pass" type="password" placeholder="mot de passe"><br>
 
-<input id="confirmPass" type="password" placeholder="confirme mot de passe">
-<br><br>
+<input id="confirmPass" type="password" placeholder="confirme ton mot de passe"><br>
 
-<button onclick="reg()">creer compte</button>
+<button onclick="register()">creer compte</button>
 
 <p id="msg"></p>
 
@@ -39,173 +36,180 @@
 <a class="nav" href="login.html">login</a>
 <a class="nav" href="index.html">accueil</a>
 
-
 <script>
 
 
-
 const SUPABASE_URL =
-"https://cwmlajtwhriqjoopknsp.supabase.co";
+    "https://cwmlajtwhriqjoopknsp.supabase.co";
 
 
 const SUPABASE_KEY =
-"sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
-
+    "sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
 
 const supabaseClient =
-window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
 
 
 
-async function reg() {
+async function register(){
 
-  const pseudo =
-    document.getElementById("pseudo")
-      .value.trim();
+    const pseudo =
+        document.getElementById("pseudo").value.trim();
 
-  const email =
-    document.getElementById("email")
-      .value.trim();
+    const email =
+        document.getElementById("email").value.trim();
 
-  const pass =
-    document.getElementById("pass")
-      .value;
+    const pass =
+        document.getElementById("pass").value;
 
-  const confirmPass =
-    document.getElementById("confirmPass")
-      .value;
+    const confirmPass =
+        document.getElementById("confirmPass").value;
 
-  const msg =
-    document.getElementById("msg");
+    const msg =
+        document.getElementById("msg");
+
+    msg.textContent = "";
 
 
-  /* Check fields */
 
-  if (!pseudo || !email || !pass || !confirmPass) {
+    if(!pseudo || !email || !pass || !confirmPass){
+
+        msg.textContent =
+            "rempli tous les champs";
+
+        return;
+    }
+
+
+    if(!email.includes("@")){
+
+        msg.textContent =
+            "email invalide";
+
+        return;
+    }
+
+
+    if(pass !== confirmPass){
+
+        msg.textContent =
+            "les mots de passe sont differents";
+
+        return;
+    }
+
+
+    if(pseudo.length < 2){
+
+        msg.textContent =
+            "pseudo trop court";
+
+        return;
+    }
+
 
     msg.textContent =
-      "non rempli";
-
-    return;
-  }
-
-
-  /* Check email */
-
-  if (!email.includes("@")) {
-
-    msg.textContent =
-      "email invalide";
-
-    return;
-  }
-
-
-  /* Check password */
-
-  if (pass.length < 6) {
-
-    msg.textContent =
-      "mot de passe trop court (6 caracteres minimum)";
-
-    return;
-  }
-
-
-  /* Check confirmation */
-
-  if (pass !== confirmPass) {
-
-    msg.textContent =
-      "les mots de passe sont differents";
-
-    return;
-  }
-
-
-  msg.textContent =
-    "creation du compte...";
+        "creation du compte...";
 
 
 
-  const {
-    data,
-    error
-  } =
-    await supabaseClient.auth.signUp({
+    const { data, error } =
+        await supabaseClient.auth.signUp({
 
-      email: email,
+            email: email,
 
-      password: pass,
+            password: pass,
 
-      options: {
-        data: {
-          pseudo: pseudo
-        }
-      }
+            options: {
+                data: {
+                    username: pseudo
+                }
+            }
 
-    });
+        });
 
 
-  if (error) {
 
-    console.error(error);
+    if(error){
 
-    msg.textContent =
-      error.message;
+        console.error(error);
 
-    return;
-  }
+        msg.textContent =
+            error.message;
 
-
-  localStorage.setItem(
-    "pseudo",
-    pseudo
-  );
-
-  localStorage.setItem(
-    "logged",
-    "1"
-  );
+        return;
+    }
 
 
-  if (data.user) {
-
-    const {
-      error: profileError
-    } =
-    await supabaseClient
-      .from("profiles")
-      .insert({
-
-        id: data.user.id,
-
-        username: pseudo
-
-      });
+    const user = data.user;
 
 
-    if (profileError) {
+    if(!user){
 
-      console.error(profileError);
+        msg.textContent =
+            "le compte n'a pas pu etre cree";
+
+        return;
+    }
+
+
+    const { error: profileError } =
+        await supabaseClient
+            .from("profiles")
+            .insert({
+
+                id: user.id,
+
+                username: pseudo
+
+            });
+
+
+
+    if(profileError){
+
+        console.error(profileError);
+
+        /*
+           The Auth account was created,
+           but the profile could not be created.
+        */
+
+        msg.textContent =
+            "compte cree mais erreur avec le profil: "
+            + profileError.message;
+
+        return;
+    }
+
+
+ 
+
+    localStorage.setItem(
+        "logged",
+        "1"
+    );
+
+    localStorage.setItem(
+        "pseudo",
+        pseudo
+    );
+
 
    
+    msg.textContent =
+        "compte cree !";
 
 
+    setTimeout(function(){
 
-  msg.textContent =
-    "compte cree !";
+        location.href =
+            "profil.html";
 
-
-  setTimeout(() => {
-
-    window.location.href =
-      "profil.html";
-
-  }, 700);
+    }, 500);
 
 }
 
@@ -214,4 +218,3 @@ async function reg() {
 </body>
 </html>
 ```
-
