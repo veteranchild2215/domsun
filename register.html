@@ -4,7 +4,7 @@
 
 <head>
 <meta charset="utf-8">
-<title>register</title>
+<title>Créer un compte - domsun</title>
 
 <link rel="stylesheet" href="style.css">
 <script src="theme.js"></script>
@@ -14,28 +14,59 @@
 
 <body>
 
-<h1>cree compte</h1>
+<h1>Créer un compte</h1>
 
 <div class="box">
 
-<input id="pseudo" placeholder="ton pseudo"><br>
+<input
+  id="pseudo"
+  type="text"
+  placeholder="pseudo"
+  required
+>
 
-<input id="email" type="email" placeholder="email"><br>
+<br><br>
 
-<input id="pass" type="password" placeholder="mot de passe"><br>
+<input
+  id="email"
+  type="email"
+  placeholder="email"
+  required
+>
 
-<button onclick="reg()">creer compte</button>
+<br><br>
+
+<input
+  id="pass"
+  type="password"
+  placeholder="mot de passe"
+  required
+>
+
+<br><br>
+
+<input
+  id="confirmPass"
+  type="password"
+  placeholder="confirme ton mot de passe"
+  required
+>
+
+<br><br>
+
+<button onclick="register()">
+  créer mon compte
+</button>
 
 <p id="msg"></p>
 
 </div>
 
-<a class="nav" href="login.html">login</a>
-<a class="nav" href="index.html">accueil</a>
+<a class="nav" href="index.html">
+  ⬅ accueil
+</a>
 
 <script>
-
-/* SUPABASE */
 
 const SUPABASE_URL =
 "https://cwmlajtwhriqjoopknsp.supabase.co";
@@ -50,11 +81,9 @@ window.supabase.createClient(
 );
 
 
-/* REGISTER */
+async function register() {
 
-async function reg() {
-
-  const p =
+  const pseudo =
     document.getElementById("pseudo").value.trim();
 
   const email =
@@ -63,21 +92,45 @@ async function reg() {
   const pass =
     document.getElementById("pass").value;
 
-  if (!p || !email || !pass) {
+  const confirmPass =
+    document.getElementById("confirmPass").value;
 
-    msg.textContent = "non rempli";
+  const msg =
+    document.getElementById("msg");
+
+
+  if (!pseudo || !email || !pass || !confirmPass) {
+
+    msg.textContent =
+      "Remplis tous les champs.";
+
     return;
 
   }
 
-  if (!email.includes("@")) {
 
-    msg.textContent = "email invalide";
+  if (pass !== confirmPass) {
+
+    msg.textContent =
+      "Les mots de passe ne correspondent pas.";
+
     return;
 
   }
 
-  msg.textContent = "creation du compte...";
+
+  if (pass.length < 6) {
+
+    msg.textContent =
+      "Le mot de passe doit contenir au moins 6 caractères.";
+
+    return;
+
+  }
+
+
+  msg.textContent =
+    "Création du compte...";
 
 
   const { data, error } =
@@ -88,9 +141,11 @@ async function reg() {
       password: pass,
 
       options: {
+
         data: {
-          pseudo: p
+          pseudo: pseudo
         }
+
       }
 
     });
@@ -101,30 +156,34 @@ async function reg() {
     console.error(error);
 
     msg.textContent =
-      "erreur: " + error.message;
+      "Erreur : " + error.message;
 
     return;
 
   }
 
 
- 
+  localStorage.setItem(
+    "pseudo",
+    pseudo
+  );
 
-  localStorage.setItem("pseudo", p);
+  localStorage.setItem(
+    "logged",
+    "1"
+  );
 
 
-  if (data.session) {
+  msg.textContent =
+    "Compte créé !";
 
-    localStorage.setItem("logged", "1");
 
-    location.href = "profil.html";
+  setTimeout(() => {
 
-  } else {
+    window.location.href =
+      "profil.html";
 
-    msg.textContent =
-      "compte cree ! verifie ton email puis connecte-toi.";
-
-  }
+  }, 800);
 
 }
 
@@ -133,3 +192,4 @@ async function reg() {
 </body>
 </html>
 ```
+
