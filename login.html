@@ -4,17 +4,19 @@
 
 <head>
 <meta charset="utf-8">
-<title>Connexion domsun</title>
+
+<title>login</title>
 
 <link rel="stylesheet" href="style.css">
 <script src="theme.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 </head>
 
 <body>
 
-<h1>Connexion</h1>
+<h1>connexion</h1>
 
 <div class="box">
 
@@ -37,24 +39,34 @@
 <br><br>
 
 <button onclick="login()">
-  se connecter
+  entrer
 </button>
 
 <p id="msg"></p>
 
 </div>
 
-<a class="nav" href="index.html">
-  ⬅ accueil
+<a class="nav" href="register.html">
+  creer compte
 </a>
 
+<a class="nav" href="index.html">
+  accueil
+</a>
+
+
 <script>
+
+
 
 const SUPABASE_URL =
 "https://cwmlajtwhriqjoopknsp.supabase.co";
 
+
+
 const SUPABASE_KEY =
 "sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+
 
 const supabaseClient =
 window.supabase.createClient(
@@ -63,17 +75,25 @@ window.supabase.createClient(
 );
 
 
+
 async function login() {
 
   const email =
-    document.getElementById("email").value.trim();
+    document
+      .getElementById("email")
+      .value
+      .trim();
 
   const pass =
-    document.getElementById("pass").value;
+    document
+      .getElementById("pass")
+      .value;
 
   const msg =
     document.getElementById("msg");
 
+
+  /* Check fields */
 
   if (!email || !pass) {
 
@@ -86,10 +106,14 @@ async function login() {
 
 
   msg.textContent =
-    "Connexion...";
+    "connexion...";
 
 
-  const { data, error } =
+
+  const {
+    data,
+    error
+  } =
     await supabaseClient.auth.signInWithPassword({
 
       email: email,
@@ -97,6 +121,7 @@ async function login() {
       password: pass
 
     });
+
 
 
   if (error) {
@@ -111,9 +136,12 @@ async function login() {
   }
 
 
+
   const pseudo =
     data.user.user_metadata?.pseudo ||
     "anonymous";
+
+
 
 
   localStorage.setItem(
@@ -127,6 +155,7 @@ async function login() {
   );
 
 
+ 
   msg.textContent =
     "Connecté !";
 
