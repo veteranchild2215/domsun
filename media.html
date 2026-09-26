@@ -1,22 +1,331 @@
+```html
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><title>domsun tube</title><link rel="stylesheet" href="style.css"><script src="theme.js"></script></head>
-<body><h1>DOMSUN TV</h1>
+<html lang="fr">
+
+<head>
+<meta charset="utf-8">
+<title>domsun tube</title>
+
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+<h1>DOMSUN TV</h1>
+
 <div class="box">
-<h2>youtube</h2><input id="ytlink" placeholder="colle lien youtube"><button onclick="addYT()">ajouter</button>
-<h2>video / audio</h2><input type="file" id="file" accept="video/*,audio/*"><button onclick="addFile()">ajouter</button>
-</div><div id="videos"></div><a class="nav" href="index.html">⬅ accueil</a>
+
+<h2>youtube</h2>
+
+<input
+  id="ytlink"
+  placeholder="colle lien youtube"
+>
+
+<button onclick="addYT()">
+  ajouter
+</button>
+
+<p id="status"></p>
+
+</div>
+
+<div id="videos"></div>
+
+<a class="nav" href="index.html">
+   accueil
+</a>
+
 <script>
-const container=document.getElementById("videos");
-function addYT(){
- let link=ytlink.value.trim(),id="";
- try{const u=new URL(link);if(u.hostname.includes("youtu.be"))id=u.pathname.slice(1);else id=u.searchParams.get("v")||"";}catch(e){}
- if(id)container.innerHTML+="<div class='box'><iframe width='560' height='315' src='https://www.youtube.com/embed/"+encodeURIComponent(id)+"' frameborder='0' allowfullscreen></iframe></div>";
- else alert("lien youtube pa compris");
+
+
+const SUPABASE_URL =
+"https://cwmlajtwhriqjoopknsp.supabase.co";
+
+const SUPABASE_KEY =
+"sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+
+const supabaseClient =
+window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+
+
+const container =
+document.getElementById("videos");
+
+const status =
+document.getElementById("status");
+
+
+
+function esc(s) {
+
+  return String(s).replace(
+    /[&<>"']/g,
+    c => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c])
+  );
+
 }
-function addFile(){
- const f=file.files[0];if(!f)return;
- const url=URL.createObjectURL(f);
- if(f.type.startsWith("video"))container.innerHTML+="<div class='box'><video controls src='"+url+"'></video><p>"+f.name+"</p></div>";
- else if(f.type.startsWith("audio"))container.innerHTML+="<div class='box'><audio controls src='"+url+"'></audio><p>"+f.name+"</p></div>";
+
+
+
+function getYoutubeID(link) {
+
+  try {
+
+    const u = new URL(link);
+
+    if (u.hostname.includes("youtu.be")) {
+      return u.pathname.slice(1);
+    }
+
+    if (u.hostname.includes("youtube.com")) {
+      return u.searchParams.get("v") || "";
+    }
+
+  } catch (e) {}
+
+  return "";
+
 }
-</script></body></html>
+
+
+
+async function addYT() {
+
+  const link =
+    ytlink.value.trim();
+
+  const id =
+    getYoutubeID(link);
+
+  if (!id) {
+
+    alert("lien youtube pa compris");
+
+    return;
+
+  }
+
+  status.textContent =
+    "ajout...";
+
+
+  const username =
+    localStorage.getItem("pseudo") ||
+    "anonymous";
+
+
+  const { error } =
+    await supabaseClient
+      .from("media_items")
+      .insert({
+
+        username: username,
+
+        type: "youtube",
+
+        title: "YouTube",
+
+        url: id
+
+      });
+
+
+  if (error) {
+
+    console.error(error);
+
+    status.textContent =
+      "erreur: impossible d'ajouter";
+
+    alert(
+      "Erreur Supabase:\n\n" +
+      error.message
+    );
+
+    return;
+
+  }
+
+
+  ytlink.value = "";
+
+  status.textContent =
+    "ajoute !";
+
+  await loadMedia();
+
+
+  setTimeout(() => {
+
+    status.textContent = "";
+
+  }, 1500);
+
+}
+
+
+
+async function reportMedia(mediaId) {
+
+  const username =
+    localStorage.getItem("pseudo");
+
+  if (!username) {
+
+    alert(
+      "Connecte-toi pour signaler une video."
+    );
+
+    return;
+
+  }
+
+
+  const reason =
+    prompt(
+      "Pourquoi veux-tu signaler cette video ?"
+    );
+
+
+  if (!reason || !reason.trim()) {
+    return;
+  }
+
+
+  const { error } =
+    await supabaseClient
+      .from("media_reports")
+      .insert({
+
+        media_id: mediaId,
+
+        reporter_username: username,
+
+        reason: reason.trim()
+
+      });
+
+
+  if (error) {
+
+    console.error(error);
+
+    alert(
+      "Impossible d'envoyer le signalement:\n\n" +
+      error.message
+    );
+
+    return;
+
+  }
+
+
+  alert(
+    "Signalement envoyé. Merci."
+  );
+
+}
+
+
+
+
+async function loadMedia() {
+
+  const { data, error } =
+    await supabaseClient
+      .from("media_items")
+      .select("*")
+      .order(
+        "created_at",
+        { ascending: true }
+      );
+
+
+  if (error) {
+
+    console.error(error);
+
+    container.innerHTML =
+      "<div class='box'>" +
+      "<b>Erreur Supabase</b><br>" +
+      esc(error.message) +
+      "</div>";
+
+    return;
+
+  }
+
+
+  if (!data || data.length === 0) {
+
+    container.innerHTML =
+      "<div class='box'>" +
+      "pa encore de video" +
+      "</div>";
+
+    return;
+
+  }
+
+
+  container.innerHTML =
+    data.map(item => {
+
+      if (item.type !== "youtube") {
+        return "";
+      }
+
+
+      return `
+        <div class="box">
+
+          <p>
+            ajoute par:
+            <b>${esc(item.username)}</b>
+          </p>
+
+          <iframe
+            width="560"
+            height="315"
+            src="https://www.youtube.com/embed/${encodeURIComponent(item.url)}"
+            frameborder="0"
+            allowfullscreen>
+          </iframe>
+
+          <br><br>
+
+          <button
+            onclick="reportMedia(${item.id})">
+            Signaler cette video
+          </button>
+
+        </div>
+      `;
+
+    }).join("");
+
+}
+
+
+loadMedia();
+
+</script>
+
+</body>
+</html>
+```
+
