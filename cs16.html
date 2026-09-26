@@ -1,0 +1,580 @@
+```html
+<!doctype html>
+<html lang="fr">
+
+<head>
+<meta charset="utf-8">
+
+<title>DOMSUN CS 1.6 SERVERS</title>
+
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+</head>
+
+<body>
+
+<h1>DOMSUN CS 1.6 SERVERS</h1>
+
+
+
+
+<div class="box">
+
+<h2>CS 1.6 SERVER LIST</h2>
+
+<p>
+les meilleurs serveurs Counter-Strike 1.6
+selectionnes par DOMSUN
+</p>
+
+<p>
+clique sur <b>CONNECT</b> pour lancer CS 1.6.
+</p>
+
+</div>
+
+
+
+<div id="servers">
+
+<div class="box">
+chargement...
+</div>
+
+</div>
+
+
+<div
+    class="box"
+    id="adminPanel"
+    style="display:none"
+>
+
+<h2>DOMSUN ADMIN</h2>
+
+<p>
+ajouter un serveur CS 1.6
+</p>
+
+<input
+    id="serverName"
+    placeholder="nom du serveur"
+><br>
+
+<input
+    id="serverIP"
+    placeholder="IP:PORT"
+><br>
+
+<input
+    id="serverMode"
+    placeholder="mode (Public, Zombie, Surf...)"
+><br>
+
+<input
+    id="serverMap"
+    placeholder="map (de_dust2...)"
+><br>
+
+<input
+    id="serverDescription"
+    placeholder="description"
+><br>
+
+<button onclick="addServer()">
+    ajouter serveur
+</button>
+
+<p id="adminStatus"></p>
+
+</div>
+
+
+
+<br>
+
+<a class="nav" href="index.html">
+    accueil
+</a>
+
+<a class="nav" href="forum.html">
+    forum
+</a>
+
+<a class="nav" href="profil.html">
+    profil
+</a>
+
+
+<script>
+
+
+
+const SUPABASE_URL =
+    "https://cwmlajtwhriqjoopknsp.supabase.co";
+
+
+/*
+   Put your SAME publishable key here.
+
+   NEVER use the secret/service-role key.
+*/
+
+const SUPABASE_KEY =
+    "sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+
+
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+
+
+
+let currentUser = null;
+let currentProfile = null;
+
+
+
+function esc(text){
+
+    return String(text).replace(
+        /[&<>"']/g,
+        function(c){
+
+            return {
+                "&":"&amp;",
+                "<":"&lt;",
+                ">":"&gt;",
+                '"':"&quot;",
+                "'":"&#39;"
+            }[c];
+
+        }
+    );
+
+}
+
+
+
+async function loadUser(){
+
+    const {
+        data,
+        error
+    } = await supabaseClient.auth.getUser();
+
+
+    if(error || !data.user){
+
+        loadServers();
+
+        return;
+
+    }
+
+
+    currentUser = data.user;
+
+
+    const {
+        data: profile
+    } = await supabaseClient
+        .from("profiles")
+        .select("username,is_admin")
+        .eq("id", currentUser.id)
+        .maybeSingle();
+
+
+    currentProfile = profile;
+
+
+    /* =========================
+       SHOW ADMIN PANEL
+       ========================= */
+
+    if(
+        currentProfile &&
+        currentProfile.is_admin === true
+    ){
+
+        document.getElementById(
+            "adminPanel"
+        ).style.display = "block";
+
+    }
+
+
+    loadServers();
+
+}
+
+
+
+async function loadServers(){
+
+    const container =
+        document.getElementById("servers");
+
+
+    container.innerHTML =
+        "<div class='box'>chargement...</div>";
+
+
+    const {
+        data,
+        error
+    } = await supabaseClient
+        .from("cs16_servers")
+        .select("*")
+        .order("created_at", {
+            ascending: true
+        });
+
+
+    if(error){
+
+        console.error(error);
+
+        container.innerHTML = `
+
+            <div class="box">
+
+                <h2>erreur</h2>
+
+                <p>
+                    la liste des serveurs n'a pas pu etre chargee.
+                </p>
+
+                <p>
+                    verifie que la table
+                    <b>cs16_servers</b>
+                    existe dans Supabase.
+                </p>
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    if(!data || data.length === 0){
+
+        container.innerHTML = `
+
+            <div class="box">
+
+                <h2>aucun serveur</h2>
+
+                <p>
+                    DOMSUN n'a pas encore ajoute de serveur.
+                </p>
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        data.map(renderServer).join("");
+
+}
+
+
+
+function renderServer(server){
+
+    const name =
+        server.name || "serveur CS 1.6";
+
+
+    const ip =
+        server.ip || "";
+
+
+    const mode =
+        server.mode || "Classic";
+
+
+    const map =
+        server.map || "inconnue";
+
+
+    const description =
+        server.description || "";
+
+
+    let deleteButton = "";
+
+
+   
+
+    if(
+        currentProfile &&
+        currentProfile.is_admin === true
+    ){
+
+        deleteButton = `
+
+            <button
+                onclick="deleteServer(${server.id})"
+            >
+                DELETE
+            </button>
+
+        `;
+
+    }
+
+
+    return `
+
+        <div class="box">
+
+            <h2>
+                ${esc(name)}
+            </h2>
+
+            <p>
+                <b>IP:</b>
+                ${esc(ip)}
+            </p>
+
+            <p>
+                <b>Mode:</b>
+                ${esc(mode)}
+            </p>
+
+            <p>
+                <b>Map:</b>
+                ${esc(map)}
+            </p>
+
+            ${
+                description
+                ? `<p>${esc(description)}</p>`
+                : ""
+            }
+
+            <p>
+
+                <a
+                    class="nav"
+                    href="steam://connect/${encodeURIComponent(ip)}"
+                >
+                    CONNECT
+                </a>
+
+                ${deleteButton}
+
+            </p>
+
+        </div>
+
+    `;
+
+}
+
+
+async function addServer(){
+
+    const name =
+        document.getElementById(
+            "serverName"
+        ).value.trim();
+
+
+    const ip =
+        document.getElementById(
+            "serverIP"
+        ).value.trim();
+
+
+    const mode =
+        document.getElementById(
+            "serverMode"
+        ).value.trim();
+
+
+    const map =
+        document.getElementById(
+            "serverMap"
+        ).value.trim();
+
+
+    const description =
+        document.getElementById(
+            "serverDescription"
+        ).value.trim();
+
+
+    const status =
+        document.getElementById(
+            "adminStatus"
+        );
+
+
+
+    if(
+        !currentProfile ||
+        currentProfile.is_admin !== true
+    ){
+
+        status.textContent =
+            "tu n'es pas admin";
+
+        return;
+
+    }
+
+
+    if(!name || !ip){
+
+        status.textContent =
+            "nom et IP obligatoires";
+
+        return;
+
+    }
+
+
+    status.textContent =
+        "ajout...";
+
+
+    const {
+        error
+    } = await supabaseClient
+        .from("cs16_servers")
+        .insert({
+
+            name: name,
+
+            ip: ip,
+
+            mode: mode || "Classic",
+
+            map: map || "inconnue",
+
+            description: description
+
+        });
+
+
+    if(error){
+
+        console.error(error);
+
+        status.textContent =
+            "erreur: " + error.message;
+
+        return;
+
+    }
+
+
+
+    document.getElementById(
+        "serverName"
+    ).value = "";
+
+    document.getElementById(
+        "serverIP"
+    ).value = "";
+
+    document.getElementById(
+        "serverMode"
+    ).value = "";
+
+    document.getElementById(
+        "serverMap"
+    ).value = "";
+
+    document.getElementById(
+        "serverDescription"
+    ).value = "";
+
+
+    status.textContent =
+        "serveur ajoute !";
+
+
+    loadServers();
+
+}
+
+
+
+async function deleteServer(id){
+
+    if(
+        !currentProfile ||
+        currentProfile.is_admin !== true
+    ){
+
+        alert(
+            "tu n'es pas admin"
+        );
+
+        return;
+
+    }
+
+
+    if(
+        !confirm(
+            "supprimer ce serveur ?"
+        )
+    ){
+
+        return;
+
+    }
+
+
+    const {
+        error
+    } = await supabaseClient
+        .from("cs16_servers")
+        .delete()
+        .eq("id", id);
+
+
+    if(error){
+
+        console.error(error);
+
+        alert(
+            "suppression refusee: " +
+            error.message
+        );
+
+        return;
+
+    }
+
+
+    loadServers();
+
+}
+
+loadUser();
+
+</script>
+
+</body>
+</html>
+```
