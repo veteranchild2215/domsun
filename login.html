@@ -4,14 +4,12 @@
 
 <head>
 <meta charset="utf-8">
-
 <title>login</title>
 
 <link rel="stylesheet" href="style.css">
 <script src="theme.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 </head>
 
 <body>
@@ -24,7 +22,6 @@
   id="email"
   type="email"
   placeholder="email"
-  required
 >
 
 <br><br>
@@ -33,7 +30,6 @@
   id="pass"
   type="password"
   placeholder="mot de passe"
-  required
 >
 
 <br><br>
@@ -57,8 +53,6 @@
 
 <script>
 
-
-
 const SUPABASE_URL =
 "https://cwmlajtwhriqjoopknsp.supabase.co";
 
@@ -79,29 +73,23 @@ window.supabase.createClient(
 async function login() {
 
   const email =
-    document
-      .getElementById("email")
-      .value
-      .trim();
+    document.getElementById("email")
+      .value.trim();
 
   const pass =
-    document
-      .getElementById("pass")
+    document.getElementById("pass")
       .value;
 
   const msg =
     document.getElementById("msg");
 
 
-  /* Check fields */
-
   if (!email || !pass) {
 
     msg.textContent =
-      "Remplis tous les champs.";
+      "remplis tous les champs";
 
     return;
-
   }
 
 
@@ -123,16 +111,14 @@ async function login() {
     });
 
 
-
   if (error) {
 
     console.error(error);
 
     msg.textContent =
-      "Email ou mot de passe incorrect.";
+      error.message;
 
     return;
-
   }
 
 
@@ -140,7 +126,6 @@ async function login() {
   const pseudo =
     data.user.user_metadata?.pseudo ||
     "anonymous";
-
 
 
 
@@ -155,9 +140,9 @@ async function login() {
   );
 
 
- 
+
   msg.textContent =
-    "Connecté !";
+    "connecte !";
 
 
   setTimeout(() => {
