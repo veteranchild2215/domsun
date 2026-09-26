@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>forum</title><link rel="stylesheet" href="style.css"><script src="theme.js"></script></head>
+<body>
+<h1> forsun</h1>
+<div class="box"><p id="welcome"></p><input id="msg" placeholder="ecri ton mesag"><button onclick="send()">envoyer</button></div>
+<div id="chat"></div>
+<a class="nav" href="index.html">accueil</a><a class="nav" href="profil.html">profil</a>
+<script>
+const user=localStorage.getItem("pseudo")||"anonymous";
+const avatar=localStorage.getItem("avatar");
+welcome.textContent="connecte: "+user;
+let posts=JSON.parse(localStorage.getItem("posts")||"[]");
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+function render(){chat.innerHTML=posts.map(p=>"<p>"+(p.avatar?'<img class=\"avatar\" style=\"width:40px;height:40px;vertical-align:middle\" src=\"'+p.avatar+'\"> ':'')+"<b>"+esc(p.user)+":</b> "+esc(p.text)+"</p>").join("")||"<div class='box'>pa de mesag</div>";}
+function send(){const t=msg.value.trim();if(!t)return;posts.push({user,avatar,text:t});localStorage.setItem("posts",JSON.stringify(posts));msg.value="";render();}
+render();
+</script>
+</body></html>

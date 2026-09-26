@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>profil</title><link rel="stylesheet" href="style.css"><script src="theme.js"></script></head>
+<body>
+<h1>mon profil</h1>
+<div class="box">
+<p>photo profil:</p><input type="file" id="img" accept="image/*"><br>
+<p>pseudo:</p><input id="pseudo" placeholder="ton pseudo"><br>
+<p>bio:</p><textarea id="bio" placeholder="je sui domsun tro for"></textarea><br>
+<button onclick="save()">sauver profil</button>
+<h2>preview</h2><img id="preview" class="avatar"><p id="showpseudo"></p><p id="showbio"></p>
+</div>
+<div class="box">
+<h2>🧠 amis</h2>
+<input id="friendname" placeholder="pseudo ami"><button onclick="addFriend()">ajouter</button>
+<div id="friends"></div>
+</div>
+<a class="nav" href="index.html">accueil</a><a class="nav" href="forum.html">forum</a>
+<script>
+function show(){
+ const p=localStorage.getItem("pseudo")||"anonymous", b=localStorage.getItem("bio")||"";
+ const a=localStorage.getItem("avatar");
+ pseudo.value=p; bio.value=b; showpseudo.textContent="pseudo: "+p; showbio.textContent="bio: "+b;
+ if(a) preview.src=a;
+}
+function save(){
+ const p=pseudo.value.trim()||"anonymous", b=bio.value;
+ localStorage.setItem("pseudo",p); localStorage.setItem("bio",b);
+ const file=img.files[0];
+ if(file){const r=new FileReader();r.onload=()=>{localStorage.setItem("avatar",r.result);show();};r.readAsDataURL(file);}
+ else show();
+ alert("profil sauve");
+}
+function addFriend(){
+ const f=friendname.value.trim(); if(!f)return;
+ const list=JSON.parse(localStorage.getItem("friends")||"[]");
+ if(!list.includes(f)) list.push(f);
+ localStorage.setItem("friends",JSON.stringify(list)); friendname.value=""; showFriends();
+}
+function showFriends(){
+ const list=JSON.parse(localStorage.getItem("friends")||"[]");
+ friends.innerHTML=list.map(x=>"<p>💙 "+escapeHtml(x)+"</p>").join("")||"<p>pas dami encore</p>";
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+show();showFriends();
+</script>
+</body></html>

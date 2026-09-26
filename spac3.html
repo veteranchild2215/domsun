@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>SPAC3 1NVAD3RS</title>
+<style>body{background:#000;color:#fff;text-align:center;font-family:monospace}canvas{background:#020510;border:2px solid #00aaff;max-width:95%}</style></head>
+<body><h1>SPAC3 1NVAD3RS</h1><p>← → bougé | F tiré | R restart</p><canvas id="game" width="500" height="500"></canvas>
+<script>
+const c=document.getElementById("game"),ctx=c.getContext("2d");
+let keys={},player={x:230,y:460,w:40,h:20},bullets=[],enemies=[],score=0,gameOver=false;
+for(let r=0;r<3;r++)for(let i=0;i<7;i++)enemies.push({x:40+i*65,y:40+r*45,w:35,h:20});
+addEventListener("keydown",e=>{keys[e.key.toLowerCase()]=true;if(e.key.toLowerCase()==="f"&&!e.repeat)bullets.push({x:player.x+18,y:player.y});if(e.key.toLowerCase()==="r")location.reload();});
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+function hit(a,b){return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y}
+function loop(){
+ctx.clearRect(0,0,500,500);
+if(keys.arrowleft)player.x-=5;if(keys.arrowright)player.x+=5;player.x=Math.max(0,Math.min(460,player.x));
+ctx.fillStyle="#00ccff";ctx.fillRect(player.x,player.y,player.w,player.h);
+ctx.fillStyle="#ff3355";
+bullets.forEach(b=>b.y-=8);bullets=bullets.filter(b=>b.y>-10);
+for(const b of bullets)ctx.fillRect(b.x,b.y,4,10);
+ctx.fillStyle="#66ff66";
+for(const e of enemies)ctx.fillRect(e.x,e.y,e.w,e.h);
+for(let bi=bullets.length-1;bi>=0;bi--)for(let ei=enemies.length-1;ei>=0;ei--)if(hit({x:bullets[bi].x,y:bullets[bi].y,w:4,h:10},enemies[ei])){bullets.splice(bi,1);enemies.splice(ei,1);score++;break}
+ctx.fillStyle="#fff";ctx.font="18px monospace";ctx.fillText("SCORE: "+score,10,25);
+if(!enemies.length){ctx.fillText("GG 😎 TU A GAGNE !",160,250);return}
+requestAnimationFrame(loop)}
+loop();
+</script></body></html>

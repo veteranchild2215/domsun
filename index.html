@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head><meta charset="utf-8"><title>domsun06 - syte bleu</title><link rel="stylesheet" href="style.css"><script src="theme.js"></script></head>
+<body>
+<h1>domsun06</h1>
+<div class="box glow">
+<h2>salu </h2>
+<p>je sui domsun06 é c mon syte <3 </p>
+<p>ici ya des logisyel, un forum, des profils, des jeux é +++</p>
+<a class="nav" href="downloads.html"> telechargman</a>
+<a class="nav" href="forum.html"> forum</a>
+<a class="nav" href="login.html"> login</a>
+<a class="nav" href="register.html"> cree compte</a>
+<a class="nav" href="profil.html"> profil</a>
+<a class="nav" href="dm.html"> messages</a>
+<a class="nav" href="media.html"> domsun tv</a>
+<a class="nav" href="tuto.html"> tuto</a>
+<a class="nav" href="themes.html">themes</a>
+
+</div>
+
+<div class="box">
+<h2> terminal tro cool</h2>
+<div style="background:#000;color:#00ff66;text-align:left;padding:15px;border-radius:8px">
+&gt; conexion domsun...<br>&gt; ok<br>&gt; bienvenue 
+</div>
+</div>
+
+<div class="box">
+<h2> bouton </h2>
+<button onclick="boom()">ne pas cliker</button>
+</div>
+
+<p class="secret">indice: tape le code secret avec ton clavier...</p>
+
+<script>
+function boom(){
+ document.body.innerHTML='<div style="padding-top:20vh"><h1 style="color:#2b67ce;font-size:70px">erreur site</h1><p></p><a class="nav" href="index.html">retour</a></div>';
+}
+let secret="", target="SPAC3 1NVAD3RS";
+document.addEventListener("keydown",e=>{
+  if(e.key.length===1) secret+=e.key.toUpperCase();
+  if(secret.length>target.length) secret=secret.slice(-target.length);
+  if(secret===target) location.href="spac3.html";
+});
+</script>
+</body>
+</html>

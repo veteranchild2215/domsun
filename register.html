@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>register</title><link rel="stylesheet" href="style.css"><script src="theme.js"></script></head>
+<body>
+<h1>cree compte</h1>
+<div class="box">
+<input id="pseudo" placeholder="ton pseudo"><br>
+<input id="email" type="email" placeholder="email"><br>
+<input id="pass" type="password" placeholder="mot de passe"><br>
+<button onclick="reg()">creer compte</button>
+<p id="msg"></p>
+</div>
+<a class="nav" href="login.html">login</a><a class="nav" href="index.html">accueil</a>
+<script>
+function reg(){
+ const pseudo=document.getElementById("pseudo").value.trim();
+ const email=document.getElementById("email").value.trim();
+ const pass=document.getElementById("pass").value;
+ if(!pseudo||!email||!pass){msg.textContent="non rempli";return;}
+ if(!email.includes("@")){msg.textContent="email invalide";return;}
+ localStorage.setItem("domsunAccount",JSON.stringify({pseudo,email,pass}));
+ localStorage.setItem("pseudo",pseudo); localStorage.setItem("logged","1");
+ location.href="profil.html";
+}
+</script>
+</body></html>

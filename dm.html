@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>messages</title><link rel="stylesheet" href="style.css"><script src="theme.js"></script></head>
+<body>
+<h1>messages privés</h1>
+<div class="box">
+<input id="to" placeholder="pseudo a qui"><br><input id="msg" placeholder="ton mesag"><button onclick="sendDM()">envoyer</button>
+</div><div id="chat"></div>
+<a class="nav" href="index.html">accueil</a>
+<script>
+const me=localStorage.getItem("pseudo")||"anonymous";
+let all=JSON.parse(localStorage.getItem("dms")||"[]");
+function esc(s){return s.replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));}
+function sendDM(){const t=to.value.trim(),m=msg.value.trim();if(!t||!m)return;all.push({from:me,to:t,text:m});localStorage.setItem("dms",JSON.stringify(all));msg.value="";showDM();}
+function showDM(){chat.innerHTML=all.filter(x=>x.from===me||x.to===me).map(x=>"<p><b>"+esc(x.from)+" → "+esc(x.to)+"</b>: "+esc(x.text)+"</p>").join("")||"<div class='box'>pas de mesag</div>";}
+showDM();
+</script>
+</body></html>

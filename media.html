@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>domsun tube</title><link rel="stylesheet" href="style.css"><script src="theme.js"></script></head>
+<body><h1>DOMSUN TV</h1>
+<div class="box">
+<h2>youtube</h2><input id="ytlink" placeholder="colle lien youtube"><button onclick="addYT()">ajouter</button>
+<h2>video / audio</h2><input type="file" id="file" accept="video/*,audio/*"><button onclick="addFile()">ajouter</button>
+</div><div id="videos"></div><a class="nav" href="index.html">⬅ accueil</a>
+<script>
+const container=document.getElementById("videos");
+function addYT(){
+ let link=ytlink.value.trim(),id="";
+ try{const u=new URL(link);if(u.hostname.includes("youtu.be"))id=u.pathname.slice(1);else id=u.searchParams.get("v")||"";}catch(e){}
+ if(id)container.innerHTML+="<div class='box'><iframe width='560' height='315' src='https://www.youtube.com/embed/"+encodeURIComponent(id)+"' frameborder='0' allowfullscreen></iframe></div>";
+ else alert("lien youtube pa compris");
+}
+function addFile(){
+ const f=file.files[0];if(!f)return;
+ const url=URL.createObjectURL(f);
+ if(f.type.startsWith("video"))container.innerHTML+="<div class='box'><video controls src='"+url+"'></video><p>"+f.name+"</p></div>";
+ else if(f.type.startsWith("audio"))container.innerHTML+="<div class='box'><audio controls src='"+url+"'></audio><p>"+f.name+"</p></div>";
+}
+</script></body></html>
