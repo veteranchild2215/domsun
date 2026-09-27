@@ -1,105 +1,403 @@
-<!doctype html>
-<html lang="fr">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8"><title>messages privés</title>
-<link rel="stylesheet" href="style.css"><script src="theme.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Messages - DOMSUN</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="theme.js"></script>
 </head>
+
 <body>
-<h1>messages privés</h1>
-<div class="box" id="composer">
-<p id="who">chargement...</p>
-<input id="to" placeholder="pseudo a qui"><br>
-<input id="msg" placeholder="ton mesag" maxlength="2000">
-<button onclick="sendDM()">envoyer</button>
-<p id="status"></p>
+
+<div class="container">
+
+  <h1>Private Messages</h1>
+
+  <p>
+    <a href="index.html">Home</a> |
+    <a href="forum.html">Forum</a> |
+    <a href="dm.html">Messages</a> |
+    <a href="profil.html">Profile</a>
+  </p>
+
+  <hr>
+
+  <div id="status">Loading...</div>
+
+  <div id="messageArea" style="display:none;">
+
+    <h2>Send a message</h2>
+
+    <input
+      id="recipient"
+      type="text"
+      placeholder="Username"
+      style="width:100%;"
+    >
+
+    <br><br>
+
+    <textarea
+      id="message"
+      rows="5"
+      placeholder="Write your message..."
+      style="width:100%;"
+    ></textarea>
+
+    <br><br>
+
+    <button id="sendButton">Send</button>
+
+    <hr>
+
+    <h2>Your messages</h2>
+
+    <div id="messages">
+      Loading messages...
+    </div>
+
+  </div>
+
 </div>
-<div id="chat"></div>
-<a class="nav" href="index.html">accueil</a>
-<a class="nav" href="profil.html">profil</a>
-<a class="nav" href="forum.html">forum</a>
+
 
 <script>
-const SUPABASE_URL="https://cwmlajtwhriqjoopknsp.supabase.co";
-const SUPABASE_KEY="sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentUser=null,currentProfile=null;
 
-function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"}[c]));}
-function avatarHtml(a,u){return a?`<img class="avatar" style="width:36px;height:36px;vertical-align:middle;object-fit:cover" src="${esc(a)}" alt="${esc(u)}"> `:"";}
+const statusBox = document.getElementById("status");
+const messageArea = document.getElementById("messageArea");
 
-async function load(){
- const {data:authData}=await supabaseClient.auth.getUser();
- currentUser=authData?.user||null;
- if(!currentUser){
-   composer.innerHTML=`<p>connecte-toi pour utiliser les messages privés.</p><a class="nav" href="login.html">login</a>`;
-   return;
- }
- const {data:profile,error}=await supabaseClient.from("profiles")
-   .select("id,username,avatar").eq("id",currentUser.id).maybeSingle();
- if(error||!profile){who.textContent="profil introuvable.";return;}
- currentProfile=profile;who.textContent="connecte: "+profile.username;
+const recipientInput = document.getElementById("recipient");
+const messageInput = document.getElementById("message");
+const sendButton = document.getElementById("sendButton");
+const messagesBox = document.getElementById("messages");
 
- const targetId=new URLSearchParams(location.search).get("user");
- if(targetId){
-   const {data:target}=await supabaseClient.from("profiles").select("username")
-     .eq("id",targetId).maybeSingle();
-   if(target)to.value=target.username;
- }
- await showDM();
+let currentUser = null;
+let currentProfile = null;
+
+
+function escapeHTML(text) {
+
+  return String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
 }
 
-async function findUser(username){
- const {data}=await supabaseClient.from("profiles").select("id,username,avatar")
-   .eq("username",username).maybeSingle();
- return data||null;
+
+// Load account
+async function loadUser() {
+
+  try {
+
+    const { data, error } =
+      await supabaseClient.auth.getUser();
+
+    if (error) {
+      throw error;
+    }
+
+    currentUser = data.user;
+
+
+    if (!currentUser) {
+
+      statusBox.innerHTML =
+        "<b>You are not logged in.</b>";
+
+      messageArea.style.display = "none";
+
+      return;
+
+    }
+
+
+    const { data: profile, error: profileError } =
+      await supabaseClient
+        .from("profiles")
+        .select("id, username, avatar")
+        .eq("id", currentUser.id)
+        .maybeSingle();
+
+
+    if (profileError) {
+      throw profileError;
+    }
+
+
+    if (!profile) {
+
+      statusBox.innerHTML =
+        "<span style='color:red;'>Your profile was not found.</span>";
+
+      return;
+
+    }
+
+
+    currentProfile = profile;
+
+
+    statusBox.innerHTML =
+      "Connected as <b>" +
+      escapeHTML(profile.username) +
+      "</b>";
+
+    messageArea.style.display = "block";
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    statusBox.innerHTML =
+      "<span style='color:red;'>" +
+      "Error loading account: " +
+      escapeHTML(error.message) +
+      "</span>";
+
+  }
+
 }
 
-async function sendDM(){
- if(!currentUser||!currentProfile){location.href="login.html";return;}
- const toName=to.value.trim(),text=msg.value.trim();
- if(!toName||!text)return;
- const recipient=await findUser(toName);
- if(!recipient){status.textContent="ce pseudo n'existe pas.";return;}
- if(recipient.id===currentUser.id){status.textContent="tu ne peux pas t'envoyer un message.";return;}
 
- const {error}=await supabaseClient.from("direct_messages").insert({
-   sender_id:currentUser.id,recipient_id:recipient.id,
-   sender_username:currentProfile.username,recipient_username:recipient.username,
-   content:text
- });
- if(error){status.textContent=error.message;return;}
- msg.value="";status.textContent="";await showDM();
+// Load messages
+async function loadMessages() {
+
+  messagesBox.innerHTML = "Loading messages...";
+
+
+  try {
+
+    const { data, error } =
+      await supabaseClient
+        .from("direct_messages")
+        .select("*")
+        .or(
+          `sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`
+        )
+        .order("created_at", {
+          ascending: false
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    if (!data || data.length === 0) {
+
+      messagesBox.innerHTML =
+        "<p>No messages yet.</p>";
+
+      return;
+
+    }
+
+
+    messagesBox.innerHTML = data.map(msg => {
+
+      const date =
+        new Date(msg.created_at).toLocaleString();
+
+
+      return `
+
+        <div
+          style="
+            border:1px solid #888;
+            padding:12px;
+            margin:10px 0;
+          "
+        >
+
+          <div>
+
+            <b>
+              ${escapeHTML(msg.sender_username)}
+            </b>
+
+            →
+            
+            <b>
+              ${escapeHTML(msg.recipient_username)}
+            </b>
+
+          </div>
+
+          <small>
+            ${escapeHTML(date)}
+          </small>
+
+          <p>
+            ${escapeHTML(msg.content)}
+          </p>
+
+        </div>
+
+      `;
+
+    }).join("");
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    messagesBox.innerHTML =
+      `<p style="color:red;">
+        Error loading messages:
+        ${escapeHTML(error.message)}
+      </p>`;
+
+  }
+
 }
 
-async function showDM(){
- const {data:messages,error}=await supabaseClient.from("direct_messages")
-   .select("id,sender_id,recipient_id,sender_username,recipient_username,content,created_at")
-   .or(`sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`)
-   .order("created_at",{ascending:true});
 
- if(error){chat.innerHTML=`<div class="box">erreur: ${esc(error.message)}</div>`;return;}
- if(!messages?.length){chat.innerHTML="<div class='box'>pas de mesag</div>";return;}
+// Send message
+sendButton.addEventListener("click", async () => {
 
- const ids=[...new Set(messages.flatMap(m=>[m.sender_id,m.recipient_id]))];
- let avatars={};
- if(ids.length){
-   const {data:profiles}=await supabaseClient.from("profiles").select("id,avatar").in("id",ids);
-   for(const p of (profiles||[]))avatars[p.id]=p.avatar;
- }
+  if (!currentUser || !currentProfile) {
 
- chat.innerHTML=messages.map(m=>`
-   <div class="box">
-     <p>${avatarHtml(avatars[m.sender_id],m.sender_username)}
-       <a href="user.html?id=${encodeURIComponent(m.sender_id)}"><b>${esc(m.sender_username)}</b></a>
-       →
-       <a href="user.html?id=${encodeURIComponent(m.recipient_id)}"><b>${esc(m.recipient_username)}</b></a>
-     </p>
-     <p>${esc(m.content)}</p>
-     <small>${new Date(m.created_at).toLocaleString()}</small>
-   </div>`).join("");
-}
-load();
+    alert("You must be logged in.");
+
+    return;
+
+  }
+
+
+  const recipientUsername =
+    recipientInput.value.trim();
+
+  const content =
+    messageInput.value.trim();
+
+
+  if (!recipientUsername || !content) {
+
+    alert(
+      "Enter a username and write a message."
+    );
+
+    return;
+
+  }
+
+
+  if (
+    recipientUsername.toLowerCase() ===
+    currentProfile.username.toLowerCase()
+  ) {
+
+    alert("You cannot send a message to yourself.");
+
+    return;
+
+  }
+
+
+  sendButton.disabled = true;
+
+  sendButton.textContent = "Sending...";
+
+
+  try {
+
+    // Find recipient
+    const { data: recipient, error: recipientError } =
+      await supabaseClient
+        .from("profiles")
+        .select("id, username")
+        .eq("username", recipientUsername)
+        .maybeSingle();
+
+
+    if (recipientError) {
+      throw recipientError;
+    }
+
+
+    if (!recipient) {
+
+      alert(
+        "No user exists with that username."
+      );
+
+      return;
+
+    }
+
+
+    // Insert message
+    const { error } =
+      await supabaseClient
+        .from("direct_messages")
+        .insert({
+
+          sender_id: currentUser.id,
+
+          recipient_id: recipient.id,
+
+          sender_username: currentProfile.username,
+
+          recipient_username: recipient.username,
+
+          content: content
+
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    messageInput.value = "";
+
+    await loadMessages();
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert(
+      "Could not send message:\n\n" +
+      error.message
+    );
+
+  }
+
+
+  sendButton.disabled = false;
+
+  sendButton.textContent = "Send";
+
+});
+
+
+// Start
+(async () => {
+
+  await loadUser();
+
+  if (currentUser) {
+    await loadMessages();
+  }
+
+})();
+
 </script>
+
 </body>
 </html>
