@@ -1,432 +1,105 @@
-```html
 <!doctype html>
 <html lang="fr">
-
 <head>
-<meta charset="utf-8">
-<title>messages</title>
-
-<link rel="stylesheet" href="style.css">
-<script src="theme.js"></script>
-
+<meta charset="utf-8"><title>messages privés</title>
+<link rel="stylesheet" href="style.css"><script src="theme.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-
 <body>
-
 <h1>messages privés</h1>
-
-<div class="box">
-
-<p id="status">
-connexion...
-</p>
-
-<input
-  id="to"
-  placeholder="pseudo a qui"
->
-
-<br><br>
-
-<input
-  id="msg"
-  placeholder="ton mesag"
->
-
-<button onclick="sendDM()">
-  envoyer
-</button>
-
+<div class="box" id="composer">
+<p id="who">chargement...</p>
+<input id="to" placeholder="pseudo a qui"><br>
+<input id="msg" placeholder="ton mesag" maxlength="2000">
+<button onclick="sendDM()">envoyer</button>
+<p id="status"></p>
 </div>
-
 <div id="chat"></div>
-
-<a class="nav" href="index.html">
-  accueil
-</a>
-
+<a class="nav" href="index.html">accueil</a>
+<a class="nav" href="profil.html">profil</a>
+<a class="nav" href="forum.html">forum</a>
 
 <script>
+const SUPABASE_URL="https://cwmlajtwhriqjoopknsp.supabase.co";
+const SUPABASE_KEY="sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null,currentProfile=null;
 
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"}[c]));}
+function avatarHtml(a,u){return a?`<img class="avatar" style="width:36px;height:36px;vertical-align:middle;object-fit:cover" src="${esc(a)}" alt="${esc(u)}"> `:"";}
 
-const SUPABASE_URL =
-"https://cwmlajtwhriqjoopknsp.supabase.co";
+async function load(){
+ const {data:authData}=await supabaseClient.auth.getUser();
+ currentUser=authData?.user||null;
+ if(!currentUser){
+   composer.innerHTML=`<p>connecte-toi pour utiliser les messages privés.</p><a class="nav" href="login.html">login</a>`;
+   return;
+ }
+ const {data:profile,error}=await supabaseClient.from("profiles")
+   .select("id,username,avatar").eq("id",currentUser.id).maybeSingle();
+ if(error||!profile){who.textContent="profil introuvable.";return;}
+ currentProfile=profile;who.textContent="connecte: "+profile.username;
 
-/*
-   PASTE YOUR SUPABASE
-   PUBLISHABLE KEY HERE
-*/
-
-const SUPABASE_KEY =
-"sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
-
-
-const supabaseClient =
-window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
-
-
-
-let currentUser = null;
-let currentUsername = null;
-
-
-
-
-function esc(s) {
-
-  return String(s).replace(
-    /[&<>"']/g,
-
-    c => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    }[c])
-
-  );
-
+ const targetId=new URLSearchParams(location.search).get("user");
+ if(targetId){
+   const {data:target}=await supabaseClient.from("profiles").select("username")
+     .eq("id",targetId).maybeSingle();
+   if(target)to.value=target.username;
+ }
+ await showDM();
 }
 
-
-
-
-async function start() {
-
-  const status =
-    document.getElementById("status");
-
-
-  /* Get Supabase session */
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient.auth.getSession();
-
-
-  if (error) {
-
-    console.error(error);
-
-    status.textContent =
-      "erreur de connexion";
-
-    return;
-  }
-
-
-  /* No session */
-
-  if (!data.session) {
-
-    status.textContent =
-      "pas connecte a Supabase. Connecte-toi avec login.";
-
-    return;
-  }
-
-
-
-  currentUser =
-    data.session.user;
-
-
-  currentUsername =
-    currentUser.user_metadata?.pseudo ||
-    localStorage.getItem("pseudo") ||
-    "anonymous";
-
-
-  localStorage.setItem(
-    "pseudo",
-    currentUsername
-  );
-
-  localStorage.setItem(
-    "logged",
-    "1"
-  );
-
-
-  status.textContent =
-    "connecte en tant que " +
-    currentUsername;
-
-
- 
-
-  const {
-    data: profile
-  } =
-    await supabaseClient
-      .from("profiles")
-      .select("id, username")
-      .eq("id", currentUser.id)
-      .maybeSingle();
-
-
-  if (!profile) {
-
-    const {
-      error: profileError
-    } =
-    await supabaseClient
-      .from("profiles")
-      .insert({
-
-        id: currentUser.id,
-
-        username: currentUsername
-
-      });
-
-
-    if (profileError) {
-
-      console.error(
-        "profile error:",
-        profileError
-      );
-
-    }
-
-  }
-
-
-  await showDM();
-
+async function findUser(username){
+ const {data}=await supabaseClient.from("profiles").select("id,username,avatar")
+   .eq("username",username).maybeSingle();
+ return data||null;
 }
 
+async function sendDM(){
+ if(!currentUser||!currentProfile){location.href="login.html";return;}
+ const toName=to.value.trim(),text=msg.value.trim();
+ if(!toName||!text)return;
+ const recipient=await findUser(toName);
+ if(!recipient){status.textContent="ce pseudo n'existe pas.";return;}
+ if(recipient.id===currentUser.id){status.textContent="tu ne peux pas t'envoyer un message.";return;}
 
-
-async function findUser(username) {
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient
-      .from("profiles")
-      .select("id, username")
-      .eq("username", username)
-      .maybeSingle();
-
-
-  if (error) {
-
-    console.error(error);
-
-    return null;
-  }
-
-
-  return data;
-
+ const {error}=await supabaseClient.from("direct_messages").insert({
+   sender_id:currentUser.id,recipient_id:recipient.id,
+   sender_username:currentProfile.username,recipient_username:recipient.username,
+   content:text
+ });
+ if(error){status.textContent=error.message;return;}
+ msg.value="";status.textContent="";await showDM();
 }
 
+async function showDM(){
+ const {data:messages,error}=await supabaseClient.from("direct_messages")
+   .select("id,sender_id,recipient_id,sender_username,recipient_username,content,created_at")
+   .or(`sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`)
+   .order("created_at",{ascending:true});
 
+ if(error){chat.innerHTML=`<div class="box">erreur: ${esc(error.message)}</div>`;return;}
+ if(!messages?.length){chat.innerHTML="<div class='box'>pas de mesag</div>";return;}
 
-async function sendDM() {
+ const ids=[...new Set(messages.flatMap(m=>[m.sender_id,m.recipient_id]))];
+ let avatars={};
+ if(ids.length){
+   const {data:profiles}=await supabaseClient.from("profiles").select("id,avatar").in("id",ids);
+   for(const p of (profiles||[]))avatars[p.id]=p.avatar;
+ }
 
-  if (!currentUser) {
-
-    alert(
-      "tu dois etre connecte"
-    );
-
-    return;
-  }
-
-
-  const to =
-    document
-      .getElementById("to")
-      .value.trim();
-
-  const message =
-    document
-      .getElementById("msg")
-      .value.trim();
-
-
-  if (!to || !message) {
-
-    return;
-  }
-
-
-  /* Find recipient */
-
-  const recipient =
-    await findUser(to);
-
-
-  if (!recipient) {
-
-    alert(
-      "ce pseudo n'existe pas"
-    );
-
-    return;
-  }
-
-
-  /* Don't message yourself */
-
-  if (recipient.id === currentUser.id) {
-
-    alert(
-      "tu ne peux pas t'envoyer un message"
-    );
-
-    return;
-  }
-
-
-  const {
-    error
-  } =
-    await supabaseClient
-      .from("direct_messages")
-      .insert({
-
-        sender_id:
-          currentUser.id,
-
-        recipient_id:
-          recipient.id,
-
-        sender_username:
-          currentUsername,
-
-        recipient_username:
-          recipient.username,
-
-        content:
-          message
-
-      });
-
-
-  if (error) {
-
-    console.error(error);
-
-    alert(
-      "erreur: " + error.message
-    );
-
-    return;
-  }
-
-
-  document.getElementById("msg")
-    .value = "";
-
-
-  await showDM();
-
+ chat.innerHTML=messages.map(m=>`
+   <div class="box">
+     <p>${avatarHtml(avatars[m.sender_id],m.sender_username)}
+       <a href="user.html?id=${encodeURIComponent(m.sender_id)}"><b>${esc(m.sender_username)}</b></a>
+       →
+       <a href="user.html?id=${encodeURIComponent(m.recipient_id)}"><b>${esc(m.recipient_username)}</b></a>
+     </p>
+     <p>${esc(m.content)}</p>
+     <small>${new Date(m.created_at).toLocaleString()}</small>
+   </div>`).join("");
 }
-
-
-async function showDM() {
-
-  if (!currentUser) {
-
-    return;
-  }
-
-
-  const chat =
-    document.getElementById("chat");
-
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient
-      .from("direct_messages")
-      .select("*")
-      .or(
-        "sender_id.eq." +
-        currentUser.id +
-        ",recipient_id.eq." +
-        currentUser.id
-      )
-      .order(
-        "created_at",
-        {
-          ascending: true
-        }
-      );
-
-
-  if (error) {
-
-    console.error(error);
-
-    chat.innerHTML =
-      "<div class='box'>erreur chargement des messages</div>";
-
-    return;
-  }
-
-
-  if (!data || data.length === 0) {
-
-    chat.innerHTML =
-      "<div class='box'>pas de mesag</div>";
-
-    return;
-  }
-
-
-  chat.innerHTML =
-    data.map(x => {
-
-      const date =
-        new Date(
-          x.created_at
-        ).toLocaleString();
-
-
-      return `
-        <div class="box">
-          <p>
-            <b>
-              ${esc(x.sender_username)}
-              →
-              ${esc(x.recipient_username)}
-            </b>
-          </p>
-
-          <p>
-            ${esc(x.content)}
-          </p>
-
-          <small>
-            ${esc(date)}
-          </small>
-        </div>
-      `;
-
-    }).join("");
-
-}
-
-
-start();
-
+load();
 </script>
-
 </body>
 </html>
-```
