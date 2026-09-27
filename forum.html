@@ -1,100 +1,376 @@
-<!doctype html>
-<html lang="fr">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta charset="utf-8"><title>forum</title>
-<link rel="stylesheet" href="style.css"><script src="theme.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Forsun</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="theme.js"></script>
 </head>
+
 <body>
-<h1>forsun</h1>
-<div class="box">
-<p id="welcome">chargement...</p>
-<input id="msg" placeholder="ecri ton mesag" maxlength="1000">
-<button onclick="send()">envoyer</button>
-<p id="status"></p>
-</div>
-<div id="chat"></div>
-<a class="nav" href="index.html">accueil</a>
-<a class="nav" href="profil.html">profil</a>
-<a class="nav" href="dm.html">messages</a>
+
+  <div class="container">
+
+    <h1>Forsun</h1>
+
+    <p>
+      <a href="index.html">Home</a> |
+      <a href="forum.html">Forum</a> |
+      <a href="dm.html">Messages</a> |
+      <a href="profil.html">Profile</a>
+    </p>
+
+    <hr>
+
+    <div id="status">Loading...</div>
+
+    <div id="composer" style="display:none;">
+
+      <h2>Create a post</h2>
+
+      <textarea
+        id="postContent"
+        rows="5"
+        style="width:100%;"
+        placeholder="Write something..."
+      ></textarea>
+
+      <br><br>
+
+      <button id="postButton">Post</button>
+
+    </div>
+
+    <hr>
+
+    <h2>Forum posts</h2>
+
+    <div id="posts">
+      Loading posts...
+    </div>
+
+  </div>
 
 <script>
-const SUPABASE_URL="https://cwmlajtwhriqjoopknsp.supabase.co";
-const SUPABASE_KEY="sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
-const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-let currentUser=null,currentProfile=null;
 
-function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"}[c]));}
+const statusBox = document.getElementById("status");
+const composer = document.getElementById("composer");
+const postContent = document.getElementById("postContent");
+const postButton = document.getElementById("postButton");
+const postsBox = document.getElementById("posts");
 
-function avatarHtml(a,u){
- if(!a)return "";
- return `<img class="avatar" style="width:40px;height:40px;vertical-align:middle;object-fit:cover" src="${esc(a)}" alt="${esc(u)}"> `;
+let currentUser = null;
+let currentProfile = null;
+
+
+// Prevent HTML injection
+function escapeHTML(text) {
+
+  return String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
 }
 
-async function load(){
- const {data:authData}=await supabaseClient.auth.getUser();
- currentUser=authData?.user||null;
 
- if(!currentUser){
-   welcome.textContent="tu dois etre connecte pour poster.";
-   msg.disabled=true;
-   document.querySelector('button[onclick="send()"]').disabled=true;
-   return render();
- }
+// Load logged-in user
+async function loadUser() {
 
- const {data:profile,error}=await supabaseClient.from("profiles")
-   .select("id,username,avatar,is_admin,is_moderator")
-   .eq("id",currentUser.id).maybeSingle();
+  try {
 
- if(error||!profile){welcome.textContent="profil introuvable.";return;}
- currentProfile=profile;
- welcome.textContent="connecte: "+profile.username;
- await render();
+    const { data, error } = await supabaseClient.auth.getUser();
+
+    if (error) {
+      throw error;
+    }
+
+    currentUser = data.user;
+
+    if (!currentUser) {
+
+      statusBox.innerHTML =
+        "<b>Not logged in.</b> You can read the forum, but you must log in to post.";
+
+      composer.style.display = "none";
+
+      return;
+
+    }
+
+
+    // Get profile
+    const { data: profile, error: profileError } =
+      await supabaseClient
+        .from("profiles")
+        .select("id, username, avatar")
+        .eq("id", currentUser.id)
+        .maybeSingle();
+
+    if (profileError) {
+      throw profileError;
+    }
+
+    currentProfile = profile;
+
+    statusBox.innerHTML =
+      "Connected as <b>" +
+      escapeHTML(profile?.username || currentUser.email) +
+      "</b>";
+
+    composer.style.display = "block";
+
+  } catch (error) {
+
+    console.error(error);
+
+    statusBox.innerHTML =
+      "<span style='color:red;'>Error loading account: " +
+      escapeHTML(error.message) +
+      "</span>";
+
+  }
+
 }
 
-async function render(){
- const {data:posts,error}=await supabaseClient.from("forum_posts")
-   .select("id,user_id,username,avatar,content,created_at")
-   .order("created_at",{ascending:true});
 
- if(error){chat.innerHTML=`<div class="box">erreur: ${esc(error.message)}</div>`;return;}
- if(!posts?.length){chat.innerHTML="<div class='box'>pa de mesag</div>";return;}
+async function loadPosts() {
 
- chat.innerHTML=posts.map(p=>{
-   const canDelete=currentProfile&&(currentProfile.is_admin===true||currentProfile.is_moderator===true);
-   return `<div class="box">
-     <p>${avatarHtml(p.avatar,p.username)}
-       <a href="user.html?id=${encodeURIComponent(p.user_id||"")}"><b>${esc(p.username)}</b></a>
-     </p>
-     <p>${esc(p.content)}</p>
-     <small>${new Date(p.created_at).toLocaleString()}</small>
-     ${canDelete?`<br><button onclick="deletePost(${p.id})">supprimer</button>`:""}
-   </div>`;
- }).join("");
+  postsBox.innerHTML = "Loading posts...";
+
+  try {
+
+    const { data: posts, error } =
+      await supabaseClient
+        .from("forum_posts")
+        .select("id, user_id, username, avatar, content, created_at")
+        .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+
+    if (!posts || posts.length === 0) {
+
+      postsBox.innerHTML = "<p>No posts yet.</p>";
+
+      return;
+
+    }
+
+
+ 
+    const userIds = [
+      ...new Set(
+        posts
+          .map(post => post.user_id)
+          .filter(Boolean)
+      )
+    ];
+
+
+    let profiles = [];
+
+    if (userIds.length > 0) {
+
+      const { data, error: profileError } =
+        await supabaseClient
+          .from("profiles")
+          .select("id, username, avatar")
+          .in("id", userIds);
+
+      if (!profileError) {
+        profiles = data || [];
+      }
+
+    }
+
+
+    const profileMap = {};
+
+    profiles.forEach(profile => {
+      profileMap[profile.id] = profile;
+    });
+
+
+    postsBox.innerHTML = posts.map(post => {
+
+      const profile = post.user_id
+        ? profileMap[post.user_id]
+        : null;
+
+      const username =
+        profile?.username ||
+        post.username ||
+        "Unknown";
+
+
+      const avatar =
+        profile?.avatar ||
+        post.avatar ||
+        "";
+
+
+      const date = new Date(post.created_at)
+        .toLocaleString();
+
+
+      let userHTML;
+
+      if (post.user_id) {
+
+        userHTML =
+          `<a href="user.html?id=${encodeURIComponent(post.user_id)}">
+            <b>${escapeHTML(username)}</b>
+          </a>`;
+
+      } else {
+
+        userHTML =
+          `<b>${escapeHTML(username)}</b>`;
+
+      }
+
+
+      return `
+
+        <div class="forum-post"
+             style="border:1px solid #888;padding:12px;margin:10px 0;">
+
+          <div>
+
+            ${
+              avatar
+              ? `<img
+                   src="${escapeHTML(avatar)}"
+                   style="width:45px;height:45px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:8px;"
+                 >`
+              : ""
+            }
+
+            ${userHTML}
+
+          </div>
+
+          <small>${escapeHTML(date)}</small>
+
+          <p>${escapeHTML(post.content)}</p>
+
+        </div>
+
+      `;
+
+    }).join("");
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    postsBox.innerHTML =
+      `<p style="color:red;">
+        Erreur loading forum:
+        ${escapeHTML(error.message)}
+      </p>`;
+
+  }
+
 }
 
-async function send(){
- if(!currentUser||!currentProfile){location.href="login.html";return;}
- const text=msg.value.trim(); if(!text)return;
 
- const {error}=await supabaseClient.from("forum_posts").insert({
-   user_id:currentUser.id,
-   username:currentProfile.username,
-   avatar:currentProfile.avatar||null,
-   content:text
- });
- if(error){status.textContent=error.message;return;}
- msg.value="";status.textContent="";await render();
-}
+// Create post
+postButton.addEventListener("click", async () => {
 
-async function deletePost(id){
- if(!currentProfile||(currentProfile.is_admin!==true&&currentProfile.is_moderator!==true))return;
- if(!confirm("supprimer ce message ?"))return;
- const {error}=await supabaseClient.from("forum_posts").delete().eq("id",id);
- if(error){alert("suppression refusee: "+error.message);return;}
- await render();
-}
-load();
+  if (!currentUser || !currentProfile) {
+
+    alert("Tu deverais avoir un compte.");
+
+    return;
+
+  }
+
+
+  const content = postContent.value.trim();
+
+  if (!content) {
+
+    alert("ecris quelquechose en premier.");
+
+    return;
+
+  }
+
+
+  postButton.disabled = true;
+
+  postButton.textContent = "Postuler...";
+
+
+  try {
+
+    const { error } =
+      await supabaseClient
+        .from("forum_posts")
+        .insert({
+
+          user_id: currentUser.id,
+
+          username: currentProfile.username,
+
+          avatar: currentProfile.avatar || null,
+
+          content: content
+
+        });
+
+
+    if (error) {
+      throw error;
+    }
+
+
+    postContent.value = "";
+
+    await loadPosts();
+
+
+  } catch (error) {
+
+    console.error(error);
+
+    alert(
+      "pouvais pas postuler:\n\n" +
+      error.message
+    );
+
+  }
+
+
+  postButton.disabled = false;
+
+  postButton.textContent = "Postuler";
+
+});
+
+
+(async () => {
+
+  await loadUser();
+
+  await loadPosts();
+
+})();
+
 </script>
+
 </body>
 </html>
