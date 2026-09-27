@@ -1,345 +1,297 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="fr">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
 
-  <title>Messages - DOMSUN</title>
+<title>messages</title>
 
-  <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css">
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase-config.js"></script>
-  <script src="theme.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="theme.js"></script>
+
 </head>
 
 <body>
 
-<div class="container">
+<h1>messages privés</h1>
 
-  <h1>Private Messages</h1>
+<div class="box">
 
-  <p>
-    <a href="index.html">Home</a> |
-    <a href="forum.html">Forum</a> |
-    <a href="dm.html">Messages</a> |
-    <a href="profil.html">Profile</a>
-  </p>
+<p id="status">chargement...</p>
 
-  <hr>
+<input id="to" placeholder="pseudo a qui">
 
-  <div id="status">Loading...</div>
+<br>
 
-  <div id="messageArea" style="display:none;">
+<input id="msg" placeholder="ton mesag">
 
-    <h2>Send a message</h2>
-
-    <input
-      id="recipient"
-      type="text"
-      placeholder="Username"
-      style="width:100%;"
-    >
-
-    <br><br>
-
-    <textarea
-      id="message"
-      rows="5"
-      placeholder="Write your message..."
-      style="width:100%;"
-    ></textarea>
-
-    <br><br>
-
-    <button id="sendButton">Send</button>
-
-    <hr>
-
-    <h2>Your messages</h2>
-
-    <div id="messages">
-      Loading messages...
-    </div>
-
-  </div>
+<button id="sendButton">envoyer</button>
 
 </div>
+
+
+<div id="chat"></div>
+
+
+<a class="nav" href="index.html">accueil</a>
+
+<a class="nav" href="forum.html">forum</a>
+
+<a class="nav" href="profil.html">profil</a>
 
 
 <script>
 
 const statusBox = document.getElementById("status");
-const messageArea = document.getElementById("messageArea");
+const chat = document.getElementById("chat");
 
-const recipientInput = document.getElementById("recipient");
-const messageInput = document.getElementById("message");
+const toInput = document.getElementById("to");
+const msgInput = document.getElementById("msg");
 const sendButton = document.getElementById("sendButton");
-const messagesBox = document.getElementById("messages");
 
 let currentUser = null;
 let currentProfile = null;
 
 
-function escapeHTML(text) {
+function esc(s){
 
-  return String(text ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
+  return String(s ?? "").replace(
+    /[&<>"']/g,
+    c => ({
+      "&":"&amp;",
+      "<":"&lt;",
+      ">":"&gt;",
+      '"':"&quot;",
+      "'":"&#39;"
+    }[c])
+  );
 
 }
 
 
-// Load account
-async function loadUser() {
+// LOGIN
+async function loadUser(){
 
-  try {
+  const { data, error } =
+    await supabaseClient.auth.getUser();
 
-    const { data, error } =
-      await supabaseClient.auth.getUser();
+  if(error){
 
-    if (error) {
-      throw error;
-    }
+    statusBox.textContent =
+      "erreur: " + error.message;
 
-    currentUser = data.user;
-
-
-    if (!currentUser) {
-
-      statusBox.innerHTML =
-        "<b>You are not logged in.</b>";
-
-      messageArea.style.display = "none";
-
-      return;
-
-    }
-
-
-    const { data: profile, error: profileError } =
-      await supabaseClient
-        .from("profiles")
-        .select("id, username, avatar")
-        .eq("id", currentUser.id)
-        .maybeSingle();
-
-
-    if (profileError) {
-      throw profileError;
-    }
-
-
-    if (!profile) {
-
-      statusBox.innerHTML =
-        "<span style='color:red;'>Your profile was not found.</span>";
-
-      return;
-
-    }
-
-
-    currentProfile = profile;
-
-
-    statusBox.innerHTML =
-      "Connected as <b>" +
-      escapeHTML(profile.username) +
-      "</b>";
-
-    messageArea.style.display = "block";
-
-
-  } catch (error) {
-
-    console.error(error);
-
-    statusBox.innerHTML =
-      "<span style='color:red;'>" +
-      "Error loading account: " +
-      escapeHTML(error.message) +
-      "</span>";
+    return;
 
   }
 
+
+  currentUser = data.user;
+
+
+  if(!currentUser){
+
+    statusBox.textContent =
+      "pas connecté";
+
+    return;
+
+  }
+
+
+  const { data: profile, error: profileError } =
+    await supabaseClient
+      .from("profiles")
+      .select("id,username,avatar")
+      .eq("id", currentUser.id)
+      .maybeSingle();
+
+
+  if(profileError){
+
+    statusBox.textContent =
+      "erreur profil: " +
+      profileError.message;
+
+    return;
+
+  }
+
+
+  currentProfile = profile;
+
+
+  statusBox.textContent =
+    "connecté: " +
+    profile.username;
+
+
+  showDM();
+
 }
 
 
-// Load messages
-async function loadMessages() {
+// SHOW MESSAGES
+async function showDM(){
 
-  messagesBox.innerHTML = "Loading messages...";
-
-
-  try {
-
-    const { data, error } =
-      await supabaseClient
-        .from("direct_messages")
-        .select("*")
-        .or(
-          `sender_id.eq.${currentUser.id},recipient_id.eq.${currentUser.id}`
-        )
-        .order("created_at", {
-          ascending: false
-        });
+  if(!currentUser) return;
 
 
-    if (error) {
-      throw error;
-    }
+  chat.innerHTML =
+    "<div class='box'>chargement...</div>";
 
 
-    if (!data || data.length === 0) {
+  const { data, error } =
+    await supabaseClient
+      .from("direct_messages")
+      .select("*")
+      .or(
+        "sender_id.eq." +
+        currentUser.id +
+        ",recipient_id.eq." +
+        currentUser.id
+      )
+      .order("created_at", {
+        ascending:false
+      });
 
-      messagesBox.innerHTML =
-        "<p>No messages yet.</p>";
 
-      return;
+  if(error){
 
-    }
+    chat.innerHTML =
+      "<div class='box'>" +
+      "<b>erreur messages:</b><br>" +
+      esc(error.message) +
+      "</div>";
+
+    return;
+
+  }
 
 
-    messagesBox.innerHTML = data.map(msg => {
+  if(!data || data.length === 0){
 
-      const date =
-        new Date(msg.created_at).toLocaleString();
+    chat.innerHTML =
+      "<div class='box'>pas de mesag</div>";
+
+    return;
+
+  }
 
 
-      return `
+  chat.innerHTML = data.map(x => {
 
-        <div
-          style="
-            border:1px solid #888;
-            padding:12px;
-            margin:10px 0;
-          "
-        >
+    const mine =
+      x.sender_id === currentUser.id;
 
-          <div>
 
-            <b>
-              ${escapeHTML(msg.sender_username)}
-            </b>
+    return `
 
+      <div class="box">
+
+        <p>
+          <b>
+            ${esc(x.sender_username)}
             →
-            
-            <b>
-              ${escapeHTML(msg.recipient_username)}
-            </b>
+            ${esc(x.recipient_username)}
+          </b>
+        </p>
 
-          </div>
+        <p>
+          ${esc(x.content)}
+        </p>
 
-          <small>
-            ${escapeHTML(date)}
-          </small>
+        <small>
+          ${esc(new Date(x.created_at).toLocaleString())}
+        </small>
 
-          <p>
-            ${escapeHTML(msg.content)}
-          </p>
+        ${
+          mine
+          ?
+          `<br>
+           <button
+             onclick="deleteDM(${x.id})">
+             supprimer
+           </button>`
+          :
+          ""
+        }
 
-        </div>
+      </div>
 
-      `;
+    `;
 
-    }).join("");
-
-
-  } catch (error) {
-
-    console.error(error);
-
-    messagesBox.innerHTML =
-      `<p style="color:red;">
-        Error loading messages:
-        ${escapeHTML(error.message)}
-      </p>`;
-
-  }
+  }).join("");
 
 }
 
 
-// Send message
-sendButton.addEventListener("click", async () => {
+// SEND
+sendButton.addEventListener(
+  "click",
+  async () => {
 
-  if (!currentUser || !currentProfile) {
+    if(!currentUser || !currentProfile){
 
-    alert("You must be logged in.");
-
-    return;
-
-  }
-
-
-  const recipientUsername =
-    recipientInput.value.trim();
-
-  const content =
-    messageInput.value.trim();
-
-
-  if (!recipientUsername || !content) {
-
-    alert(
-      "Enter a username and write a message."
-    );
-
-    return;
-
-  }
-
-
-  if (
-    recipientUsername.toLowerCase() ===
-    currentProfile.username.toLowerCase()
-  ) {
-
-    alert("You cannot send a message to yourself.");
-
-    return;
-
-  }
-
-
-  sendButton.disabled = true;
-
-  sendButton.textContent = "Sending...";
-
-
-  try {
-
-    // Find recipient
-    const { data: recipient, error: recipientError } =
-      await supabaseClient
-        .from("profiles")
-        .select("id, username")
-        .eq("username", recipientUsername)
-        .maybeSingle();
-
-
-    if (recipientError) {
-      throw recipientError;
-    }
-
-
-    if (!recipient) {
-
-      alert(
-        "No user exists with that username."
-      );
+      alert("connecte toi d'abord");
 
       return;
 
     }
 
 
-    // Insert message
-    const { error } =
+    const username =
+      toInput.value.trim();
+
+    const message =
+      msgInput.value.trim();
+
+
+    if(!username || !message){
+
+      alert("rempli les deux champs");
+
+      return;
+
+    }
+
+
+    sendButton.disabled = true;
+
+
+    const { data: recipient, error } =
+      await supabaseClient
+        .from("profiles")
+        .select("id,username")
+        .eq("username", username)
+        .maybeSingle();
+
+
+    if(error){
+
+      alert(error.message);
+
+      sendButton.disabled = false;
+
+      return;
+
+    }
+
+
+    if(!recipient){
+
+      alert("utilisateur introuvable");
+
+      sendButton.disabled = false;
+
+      return;
+
+    }
+
+
+    const { error: sendError } =
       await supabaseClient
         .from("direct_messages")
         .insert({
@@ -348,54 +300,76 @@ sendButton.addEventListener("click", async () => {
 
           recipient_id: recipient.id,
 
-          sender_username: currentProfile.username,
+          sender_username:
+            currentProfile.username,
 
-          recipient_username: recipient.username,
+          recipient_username:
+            recipient.username,
 
-          content: content
+          content: message
 
         });
 
 
-    if (error) {
-      throw error;
+    if(sendError){
+
+      alert(
+        "erreur: " +
+        sendError.message
+      );
+
+    }
+    else{
+
+      msgInput.value = "";
+
+      showDM();
+
     }
 
 
-    messageInput.value = "";
+    sendButton.disabled = false;
 
-    await loadMessages();
+  }
+);
 
 
-  } catch (error) {
+// DELETE
+async function deleteDM(id){
 
-    console.error(error);
+  if(!confirm("supprimer ce message ?")){
+
+    return;
+
+  }
+
+
+  const { error } =
+    await supabaseClient
+      .from("direct_messages")
+      .delete()
+      .eq("id", id)
+      .eq("sender_id", currentUser.id);
+
+
+  if(error){
 
     alert(
-      "Could not send message:\n\n" +
+      "erreur suppression: " +
       error.message
     );
 
+    return;
+
   }
 
 
-  sendButton.disabled = false;
+  showDM();
 
-  sendButton.textContent = "Send";
-
-});
+}
 
 
-// Start
-(async () => {
-
-  await loadUser();
-
-  if (currentUser) {
-    await loadMessages();
-  }
-
-})();
+loadUser();
 
 </script>
 
