@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"><title>profil utilisateur</title>
+<link rel="stylesheet" href="style.css"><script src="theme.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<h1>profil</h1>
+<div class="box" id="profileBox">chargement...</div>
+<a class="nav" href="index.html">accueil</a>
+<a class="nav" href="forum.html">forum</a>
+<a class="nav" href="dm.html">messages</a>
+
+<script>
+const SUPABASE_URL="https://cwmlajtwhriqjoopknsp.supabase.co";
+const SUPABASE_KEY="sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
+const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
+function esc(s){return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",""":"&quot;","'":"&#39;"}[c]));}
+
+async function loadProfile(){
+ const id=new URLSearchParams(location.search).get("id");
+ if(!id){profileBox.innerHTML="profil introuvable.";return;}
+
+ const {data:p,error}=await supabaseClient.from("profiles")
+   .select("id,username,avatar,bio,created_at").eq("id",id).maybeSingle();
+
+ if(error||!p){profileBox.innerHTML="profil introuvable.";return;}
+
+ profileBox.innerHTML=`
+   ${p.avatar?`<img class="avatar" style="width:120px;height:120px;object-fit:cover" src="${esc(p.avatar)}">`:""}
+   <h2>${esc(p.username)}</h2>
+   <p>${esc(p.bio||"pas de bio")}</p>
+   <p>membre depuis: ${new Date(p.created_at).toLocaleDateString()}</p>
+   <a class="nav" href="dm.html?user=${encodeURIComponent(p.id)}">envoyer un message</a>
+ `;
+}
+loadProfile();
+</script>
+</body>
+</html>
