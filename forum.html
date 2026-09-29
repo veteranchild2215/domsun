@@ -1,498 +1,442 @@
 <!doctype html>
 <html lang="fr">
-
 <head>
 <meta charset="utf-8">
-
-<title>forum</title>
+<title>DOMSUN Forum</title>
 
 <link rel="stylesheet" href="style.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="theme.js"></script>
-
 </head>
 
 <body>
 
-<h1>forsun</h1>
+<h1>DOMSUN Forum</h1>
 
 <div class="box">
+    <h2>Nouveau message</h2>
 
-<p id="welcome">chargement...</p>
+    <textarea
+        id="content"
+        placeholder="écris ton message..."
+        style="width:90%;min-height:80px;"
+    ></textarea>
 
-<input
-  id="msg"
-  placeholder="ecri ton mesag"
->
+    <br>
 
-<button id="sendButton">
-envoyer
-</button>
+    <input
+        type="file"
+        id="forumImage"
+        accept="image/*"
+    >
 
+    <br>
+
+    <button onclick="sendPost()">envoyer</button>
+
+    <p id="status"></p>
 </div>
 
+<div id="forum">
+    <div class="box">chargement...</div>
+</div>
 
-<div id="chat"></div>
-
+<br>
 
 <a class="nav" href="index.html">accueil</a>
-
 <a class="nav" href="profil.html">profil</a>
-
 <a class="nav" href="dm.html">messages</a>
-
 
 <script>
 
-const welcome =
-  document.getElementById("welcome");
+const forum = document.getElementById("forum");
+const statusText = document.getElementById("status");
 
-const msg =
-  document.getElementById("msg");
-
-const sendButton =
-  document.getElementById("sendButton");
-
-const chat =
-  document.getElementById("chat");
-
-
-let currentUser = null;
-let currentProfile = null;
-
-
-function esc(s){
-
-  return String(s ?? "").replace(
-    /[&<>"']/g,
-    c => ({
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      '"':"&quot;",
-      "'":"&#39;"
-    }[c])
-  );
-
+function escapeHtml(text) {
+    return String(text || "").replace(/[&<>"']/g, function(c) {
+        return {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#039;"
+        }[c];
+    });
 }
 
 
-async function loadUser(){
+async function getCurrentUser() {
 
-  const { data, error } =
-    await supabaseClient.auth.getUser();
+    const { data, error } =
+        await supabaseClient.auth.getUser();
 
+    if (error) {
+        console.error(error);
+        return null;
+    }
 
-  if(error){
-
-    welcome.textContent =
-      "erreur: " + error.message;
-
-    return;
-
-  }
-
-
-  currentUser = data.user;
-
-
-  if(!currentUser){
-
-    welcome.textContent =
-      "pas connecté - connecte toi pour écrire";
-
-    sendButton.disabled = true;
-
-    msg.disabled = true;
-
-    return;
-
-  }
-
-
-  const { data: profile, error: profileError } =
-    await supabaseClient
-      .from("profiles")
-      .select("id,username,avatar,is_admin,is_moderator")
-      .eq("id", currentUser.id)
-      .maybeSingle();
-
-
-  if(profileError){
-
-    welcome.textContent =
-      "erreur profil: " +
-      profileError.message;
-
-    return;
-
-  }
-
-
-  if(!profile){
-
-    welcome.textContent =
-      "profil introuvable";
-
-    return;
-
-  }
-
-
-  currentProfile = profile;
-
-
-  welcome.textContent =
-    "connecté: " +
-    profile.username;
-
-
-  showPosts();
-
+    return data.user;
 }
 
 
-async function showPosts(){
+async function sendPost() {
 
-  chat.innerHTML =
-    "<div class='box'>chargement...</div>";
+    const user = await getCurrentUser();
 
+    if (!user) {
+        statusText.textContent =
+            "tu dois être connecté pour poster";
+        return;
+    }
 
-  const { data: posts, error } =
-    await supabaseClient
-      .from("forum_posts")
-      .select(
-        "id,user_id,username,avatar,content,created_at"
-      )
-      .order("created_at", {
-        ascending:false
-      });
+    const content =
+        document.getElementById("content")
+        .value
+        .trim();
 
+    const imageFile =
+        document.getElementById("forumImage")
+        .files[0];
 
-  if(error){
+    if (!content && !imageFile) {
+        statusText.textContent =
+            "écris quelque chose ou choisis une image";
+        return;
+    }
 
-    chat.innerHTML =
-      "<div class='box'>" +
-      "<b>erreur forum:</b><br>" +
-      esc(error.message) +
-      "</div>";
-
-    return;
-
-  }
+    statusText.textContent = "envoi...";
 
 
-  if(!posts || posts.length === 0){
-
-    chat.innerHTML =
-      "<div class='box'>pa de mesag</div>";
-
-    return;
-
-  }
 
 
-  const ids = [
-    ...new Set(
-      posts
-        .map(p => p.user_id)
-        .filter(Boolean)
-    )
-  ];
+    const { data: profile, error: profileError } =
+        await supabaseClient
+            .from("profiles")
+            .select("username, avatar")
+            .eq("id", user.id)
+            .single();
+
+    if (profileError) {
+
+        statusText.textContent =
+            "erreur profil: " + profileError.message;
+
+        return;
+    }
 
 
-  let profiles = [];
+ 
 
+    let imageUrl = null;
 
-  if(ids.length > 0){
+    if (imageFile) {
 
-    const { data } =
-      await supabaseClient
-        .from("profiles")
-        .select(
-          "id,username,avatar,is_admin,is_moderator"
-        )
-        .in("id", ids);
+        if (imageFile.size > 5 * 1024 * 1024) {
 
+            statusText.textContent =
+                "image trop grande (maximum 5 MB)";
 
-    profiles = data || [];
-
-  }
-
-
-  const profileMap = {};
-
-
-  profiles.forEach(p => {
-
-    profileMap[p.id] = p;
-
-  });
-
-
-  chat.innerHTML =
-    posts.map(post => {
-
-      const profile =
-        profileMap[post.user_id];
-
-
-      const username =
-        profile?.username ||
-        post.username ||
-        "anonymous";
-
-
-      const avatar =
-        profile?.avatar ||
-        post.avatar;
-
-
-      const date =
-        new Date(
-          post.created_at
-        ).toLocaleString();
-
-
-      let usernameHTML;
-
-
-      if(post.user_id){
-
-        usernameHTML =
-          `<a href="user.html?id=${encodeURIComponent(post.user_id)}">
-            <b>${esc(username)}</b>
-          </a>`;
-
-      }
-
-      else{
-
-        usernameHTML =
-          `<b>${esc(username)}</b>`;
-
-      }
-
-
-      let avatarHTML = "";
-
-
-      if(avatar){
-
-        avatarHTML = `
-          <img
-            class="avatar"
-            src="${esc(avatar)}"
-            style="
-              width:40px;
-              height:40px;
-              object-fit:cover;
-              vertical-align:middle;
-              margin-right:5px;
-              border-radius:0;
-            "
-          >
-        `;
-
-      }
-
-
-      let deleteHTML = "";
-
-
-      if(currentProfile){
-
-        const canDelete =
-          currentProfile.is_admin ||
-          currentProfile.is_moderator;
-
-
-        if(canDelete){
-
-          deleteHTML = `
-            <br>
-            <button
-              onclick="deletePost(${post.id})">
-              supprimer
-            </button>
-          `;
-
+            return;
         }
 
-      }
+        if (!imageFile.type.startsWith("image/")) {
+
+            statusText.textContent =
+                "fichier non valide";
+
+            return;
+        }
+
+        const safeName =
+            imageFile.name
+                .replace(/[^a-zA-Z0-9._-]/g, "_");
+
+        const filePath =
+            "forum/" +
+            user.id +
+            "/" +
+            Date.now() +
+            "_" +
+            safeName;
 
 
-      return `
-
-        <div class="box">
-
-          <p>
-
-            ${avatarHTML}
-
-            ${usernameHTML}
-
-          </p>
-
-
-          <p>
-
-            ${esc(post.content)}
-
-          </p>
+        const { error: uploadError } =
+            await supabaseClient
+                .storage
+                .from("media")
+                .upload(
+                    filePath,
+                    imageFile,
+                    {
+                        contentType: imageFile.type,
+                        upsert: false
+                    }
+                );
 
 
-          <small>
+        if (uploadError) {
 
-            ${esc(date)}
+            statusText.textContent =
+                "erreur upload image: " +
+                uploadError.message;
 
-          </small>
-
-
-          ${deleteHTML}
-
-        </div>
-
-      `;
-
-    }).join("");
-
-}
+            return;
+        }
 
 
-sendButton.addEventListener(
-  "click",
-  async () => {
+        const { data: publicData } =
+            supabaseClient
+                .storage
+                .from("media")
+                .getPublicUrl(filePath);
 
-    if(!currentUser || !currentProfile){
-
-      alert(
-        "connecte toi pour écrire"
-      );
-
-      return;
-
+        imageUrl =
+            publicData.publicUrl;
     }
 
 
-    const text =
-      msg.value.trim();
-
-
-    if(!text){
-
-      return;
-
-    }
-
-
-    sendButton.disabled = true;
-
+  
 
     const { error } =
-      await supabaseClient
-        .from("forum_posts")
-        .insert({
+        await supabaseClient
+            .from("forum_posts")
+            .insert({
 
-          user_id:
-            currentUser.id,
+                user_id: user.id,
 
-          username:
-            currentProfile.username,
+                username:
+                    profile.username,
 
-          avatar:
-            currentProfile.avatar || null,
+                avatar:
+                    profile.avatar || null,
 
-          content:
-            text
+                content:
+                    content || "",
 
-        });
+                image_url:
+                    imageUrl
+
+            });
 
 
-    if(error){
+    if (error) {
 
-      alert(
-        "erreur: " +
-        error.message
-      );
+        statusText.textContent =
+            "erreur: " + error.message;
 
-    }
-    else{
-
-      msg.value = "";
-
-      showPosts();
-
+        return;
     }
 
 
-    sendButton.disabled = false;
+    document.getElementById("content").value = "";
+    document.getElementById("forumImage").value = "";
 
-  }
-);
+    statusText.textContent =
+        "message envoyé !";
 
-
-async function deletePost(id){
-
-  if(!currentProfile){
-
-    return;
-
-  }
-
-
-  const canDelete =
-    currentProfile.is_admin ||
-    currentProfile.is_moderator;
-
-
-  if(!canDelete){
-
-    alert(
-      "tu n'as pas les droits"
-    );
-
-    return;
-
-  }
-
-
-  if(!confirm(
-    "supprimer ce message ?"
-  )){
-
-    return;
-
-  }
-
-
-  const { error } =
-    await supabaseClient
-      .from("forum_posts")
-      .delete()
-      .eq("id", id);
-
-
-  if(error){
-
-    alert(
-      "erreur suppression: " +
-      error.message
-    );
-
-    return;
-
-  }
-
-
-  showPosts();
-
+    loadForum();
 }
 
 
-loadUser();
+async function deletePost(id) {
+
+    if (!confirm("supprimer ce message ?")) {
+        return;
+    }
+
+    const { error } =
+        await supabaseClient
+            .from("forum_posts")
+            .delete()
+            .eq("id", id);
+
+    if (error) {
+
+        alert(
+            "erreur suppression: " +
+            error.message
+        );
+
+        return;
+    }
+
+    loadForum();
+}
+
+
+async function loadForum() {
+
+    forum.innerHTML =
+        '<div class="box">chargement...</div>';
+
+
+    const { data: posts, error } =
+        await supabaseClient
+            .from("forum_posts")
+            .select("*")
+            .order("created_at", {
+                ascending: false
+            });
+
+
+    if (error) {
+
+        forum.innerHTML =
+            '<div class="box">Erreur loading forum: ' +
+            escapeHtml(error.message) +
+            '</div>';
+
+        return;
+    }
+
+
+    const { data: userData } =
+        await supabaseClient.auth.getUser();
+
+    const user =
+        userData.user;
+
+
+    let myProfile = null;
+
+    if (user) {
+
+        const { data } =
+            await supabaseClient
+                .from("profiles")
+                .select("is_admin,is_moderator")
+                .eq("id", user.id)
+                .single();
+
+        myProfile = data;
+    }
+
+
+    if (!posts || posts.length === 0) {
+
+        forum.innerHTML =
+            '<div class="box">aucun message</div>';
+
+        return;
+    }
+
+
+    forum.innerHTML =
+        posts.map(function(post) {
+
+            let date = "";
+
+            if (post.created_at) {
+
+                date =
+                    new Date(
+                        post.created_at
+                    ).toLocaleString("fr-FR");
+            }
+
+
+            let avatar = "";
+
+            if (post.avatar) {
+
+                avatar =
+                    `<img
+                        src="${escapeHtml(post.avatar)}"
+                        style="
+                            width:50px;
+                            height:50px;
+                            object-fit:cover;
+                            border:1px solid #555;
+                            border-radius:0;
+                            display:block;
+                            margin-bottom:5px;
+                        "
+                    >`;
+            }
+
+
+            let image = "";
+
+            if (post.image_url) {
+
+                image =
+                    `<br>
+                    <img
+                        src="${escapeHtml(post.image_url)}"
+                        style="
+                            max-width:500px;
+                            max-height:500px;
+                            object-fit:contain;
+                            border:1px solid #777;
+                            border-radius:0;
+                            margin-top:8px;
+                        "
+                    >`;
+            }
+
+
+            let deleteButton = "";
+
+            if (
+                myProfile &&
+                (
+                    myProfile.is_admin ||
+                    myProfile.is_moderator
+                )
+            ) {
+
+                deleteButton =
+                    `<br>
+                    <button
+                        onclick="deletePost(${post.id})"
+                    >
+                        supprimer
+                    </button>`;
+            }
+
+
+            let usernameHtml =
+                escapeHtml(post.username);
+
+
+            if (post.user_id) {
+
+                usernameHtml =
+                    `<a href="user.html?id=${encodeURIComponent(post.user_id)}">
+                        ${escapeHtml(post.username)}
+                    </a>`;
+            }
+
+
+            return `
+                <div class="box">
+
+                    ${avatar}
+
+                    <b>${usernameHtml}</b>
+
+                    <small>
+                        — ${escapeHtml(date)}
+                    </small>
+
+                    <p>
+                        ${escapeHtml(post.content)}
+                    </p>
+
+                    ${image}
+
+                    ${deleteButton}
+
+                </div>
+            `;
+
+        }).join("");
+}
+
+
+loadForum();
 
 </script>
 
