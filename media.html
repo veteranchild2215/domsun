@@ -1,443 +1,385 @@
-```html
 <!doctype html>
 <html lang="fr">
-
 <head>
 <meta charset="utf-8">
-<title>domsun tube</title>
+<title>DOMSUN TV</title>
 
 <link rel="stylesheet" href="style.css">
-<script src="theme.js"></script>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="theme.js"></script>
 </head>
 
 <body>
 
 <h1>DOMSUN TV</h1>
 
+
 <div class="box">
 
-<h2>youtube</h2>
+    <h2>Ajouter une vidéo / audio</h2>
 
-<input
-  id="ytlink"
-  placeholder="colle lien youtube"
->
+    <input
+        type="file"
+        id="file"
+        accept="video/mp4,video/*,audio/*"
+    >
 
-<button onclick="addYT()">
-  ajouter
-</button>
+    <br>
 
-<h2>video / audio</h2>
+    <input
+        type="text"
+        id="title"
+        placeholder="titre"
+    >
 
-<input
-  type="file"
-  id="file"
-  accept="video/*,audio/*"
->
+    <br>
 
-<button onclick="addFile()">
-  ajouter
-</button>
+    <button onclick="uploadFile()">
+        ajouter
+    </button>
 
-<p id="status"></p>
+    <p id="status"></p>
 
 </div>
 
-<div id="videos"></div>
 
-<a class="nav" href="index.html">
-  ⬅ accueil
-</a>
+<div id="videos">
+    <div class="box">chargement...</div>
+</div>
+
+
+<br>
+
+<a class="nav" href="index.html">accueil</a>
+<a class="nav" href="forum.html">forum</a>
+<a class="nav" href="profil.html">profil</a>
+
 
 <script>
 
 
-
-const SUPABASE_URL =
-"https://cwmlajtwhriqjoopknsp.supabase.co";
-
-const SUPABASE_KEY =
-"sb_publishable_7h5wqYc5t0NopFoQ83hLbQ_QXpa6PPk";
-
-const supabaseClient =
-window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
-
-
-
-
 const container =
-document.getElementById("videos");
+    document.getElementById("videos");
 
-const status =
-document.getElementById("status");
-
-
+const statusText =
+    document.getElementById("status");
 
 
-function esc(s) {
+function escapeHtml(text) {
 
-  return String(s).replace(
-    /[&<>"']/g,
-    c => ({
-      "&": "&amp;",
-      "<": "&lt;",
-      ">": "&gt;",
-      '"': "&quot;",
-      "'": "&#39;"
-    }[c])
-  );
+    return String(text || "")
+        .replace(/[&<>"']/g, function(c) {
 
+            return {
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            }[c];
+
+        });
 }
 
 
+async function uploadFile() {
+
+    const file =
+        document.getElementById("file")
+            .files[0];
 
 
-function getYoutubeID(link) {
+    const title =
+        document.getElementById("title")
+            .value
+            .trim();
 
-  try {
 
-    const u = new URL(link);
+    if (!file) {
 
-    if (
-      u.hostname === "youtu.be" ||
-      u.hostname === "www.youtu.be"
-    ) {
+        statusText.textContent =
+            "choisis un fichier";
 
-      return u.pathname
-        .replace("/", "")
-        .split("?")[0];
-
+        return;
     }
 
-    if (
-      u.hostname.includes("youtube.com")
-    ) {
 
-      return u.searchParams.get("v") || "";
+    /* limite 100 MB */
 
+    if (file.size > 100 * 1024 * 1024) {
+
+        statusText.textContent =
+            "fichier trop gros (maximum 100 MB)";
+
+        return;
     }
 
-  } catch (e) {}
 
-  return "";
+    statusText.textContent =
+        "upload en cours...";
 
+
+    /* vérifier connexion */
+
+    const { data: userData, error: userError } =
+        await supabaseClient.auth.getUser();
+
+
+    if (userError || !userData.user) {
+
+        statusText.textContent =
+            "tu dois être connecté";
+
+        return;
+    }
+
+
+    const user =
+        userData.user;
+
+
+  
+
+    const { data: profile, error: profileError } =
+        await supabaseClient
+            .from("profiles")
+            .select("username")
+            .eq("id", user.id)
+            .single();
+
+
+    if (profileError || !profile) {
+
+        statusText.textContent =
+            "profil introuvable";
+
+        return;
+    }
+
+
+   
+
+    const safeName =
+        file.name
+            .replace(/[^a-zA-Z0-9._-]/g, "_");
+
+
+   
+
+    const filePath =
+        "uploads/" +
+        user.id +
+        "/" +
+        Date.now() +
+        "_" +
+        safeName;
+
+
+    
+
+    const { error: uploadError } =
+        await supabaseClient
+            .storage
+            .from("media")
+            .upload(
+                filePath,
+                file,
+                {
+                    contentType:
+                        file.type,
+
+                    cacheControl:
+                        "3600",
+
+                    upsert:
+                        false
+                }
+            );
+
+
+    if (uploadError) {
+
+        statusText.textContent =
+            "erreur upload: " +
+            uploadError.message;
+
+        return;
+    }
+
+
+    /* URL publique */
+
+    const { data: publicData } =
+        supabaseClient
+            .storage
+            .from("media")
+            .getPublicUrl(filePath);
+
+
+    const publicUrl =
+        publicData.publicUrl;
+
+
+    /* type */
+
+    let type =
+        "audio";
+
+
+    if (file.type.startsWith("video")) {
+        type = "video";
+    }
+
+
+    /* enregistrer dans la DB */
+
+    const { error: dbError } =
+        await supabaseClient
+            .from("media_items")
+            .insert({
+
+                username:
+                    profile.username,
+
+                type:
+                    type,
+
+                title:
+                    title || file.name,
+
+                url:
+                    publicUrl
+
+            });
+
+
+    if (dbError) {
+
+        statusText.textContent =
+            "fichier uploadé mais erreur DB: " +
+            dbError.message;
+
+        return;
+    }
+
+
+    /* nettoyer */
+
+    document.getElementById("file").value = "";
+    document.getElementById("title").value = "";
+
+
+    statusText.textContent =
+        "fichier sauvegardé !";
+
+
+    loadMedia();
 }
-
-
-
-
-async function addYT() {
-
-  const input =
-    document.getElementById("ytlink");
-
-  const link =
-    input.value.trim();
-
-  const id =
-    getYoutubeID(link);
-
-  if (!id) {
-
-    alert(
-      "Lien YouTube pas compris."
-    );
-
-    return;
-
-  }
-
-  status.textContent =
-    "ajout...";
-
-  const username =
-    localStorage.getItem("pseudo") ||
-    "anonymous";
-
-
-  const { error } =
-    await supabaseClient
-      .from("media_items")
-      .insert({
-
-        username: username,
-
-        type: "youtube",
-
-        title: "YouTube",
-
-        url: id
-
-      });
-
-
-  if (error) {
-
-    console.error(error);
-
-    status.textContent = "";
-
-    alert(
-      "Impossible d'ajouter la vidéo :\n\n" +
-      error.message
-    );
-
-    return;
-
-  }
-
-
-  input.value = "";
-
-  status.textContent =
-    "video ajoutee !";
-
-  await loadMedia();
-
-
-  setTimeout(() => {
-
-    status.textContent = "";
-
-  }, 1500);
-
-}
-
-
-
-
-function addFile() {
-
-  const f =
-    document.getElementById("file").files[0];
-
-  if (!f) {
-
-    alert(
-      "Choisis une video ou un audio."
-    );
-
-    return;
-
-  }
-
-
-  const url =
-    URL.createObjectURL(f);
-
-
-  const box =
-    document.createElement("div");
-
-  box.className = "box";
-
-
-  const title =
-    document.createElement("p");
-
-  title.innerHTML =
-    "<b>" + esc(f.name) + "</b>";
-
-  box.appendChild(title);
-
-
-  if (f.type.startsWith("video")) {
-
-    const video =
-      document.createElement("video");
-
-    video.controls = true;
-
-    video.src = url;
-
-    video.style.maxWidth = "100%";
-
-    box.appendChild(video);
-
-  }
-
-
-  else if (f.type.startsWith("audio")) {
-
-    const audio =
-      document.createElement("audio");
-
-    audio.controls = true;
-
-    audio.src = url;
-
-    box.appendChild(audio);
-
-  }
-
-
-  else {
-
-    URL.revokeObjectURL(url);
-
-    alert(
-      "Format non supporté."
-    );
-
-    return;
-
-  }
-
-
-  container.prepend(box);
-
-}
-
-
-
-
-async function reportMedia(mediaId) {
-
-  const username =
-    localStorage.getItem("pseudo");
-
-  if (!username) {
-
-    alert(
-      "Connecte-toi pour signaler une video."
-    );
-
-    return;
-
-  }
-
-
-  const reason =
-    prompt(
-      "Pourquoi veux-tu signaler cette video ?"
-    );
-
-
-  if (!reason || !reason.trim()) {
-
-    return;
-
-  }
-
-
-  const { error } =
-    await supabaseClient
-      .from("media_reports")
-      .insert({
-
-        media_id: mediaId,
-
-        reporter_username: username,
-
-        reason: reason.trim()
-
-      });
-
-
-  if (error) {
-
-    console.error(error);
-
-    alert(
-      "Impossible d'envoyer le signalement:\n\n" +
-      error.message
-    );
-
-    return;
-
-  }
-
-
-  alert(
-    "Signalement envoyé. Merci."
-  );
-
-}
-
-
 
 
 async function loadMedia() {
 
-  const { data, error } =
-    await supabaseClient
-      .from("media_items")
-      .select("*")
-      .order(
-        "created_at",
-        { ascending: true }
-      );
-
-
-  if (error) {
-
-    console.error(error);
-
     container.innerHTML =
-      "<div class='box'>" +
-      "<b>Erreur Supabase</b><br>" +
-      esc(error.message) +
-      "</div>";
-
-    return;
-
-  }
+        '<div class="box">chargement...</div>';
 
 
-  if (!data || data.length === 0) {
+    const { data, error } =
+        await supabaseClient
+            .from("media_items")
+            .select("*")
+            .order("created_at", {
+                ascending: false
+            });
 
-    return;
 
-  }
+    if (error) {
 
+        container.innerHTML =
+            '<div class="box">erreur: ' +
+            escapeHtml(error.message) +
+            '</div>';
 
-  data.forEach(item => {
-
-    if (item.type !== "youtube") {
-
-      return;
-
+        return;
     }
 
 
-    const box =
-      document.createElement("div");
+    if (!data || data.length === 0) {
 
-    box.className = "box";
+        container.innerHTML =
+            '<div class="box">aucun média</div>';
 
-
-    box.innerHTML = `
-      <p>
-        ajoute par:
-        <b>${esc(item.username)}</b>
-      </p>
-
-      <iframe
-        width="560"
-        height="315"
-        src="https://www.youtube.com/embed/${encodeURIComponent(item.url)}"
-        frameborder="0"
-        allowfullscreen>
-      </iframe>
-
-      <br><br>
-
-      <button
-        onclick="reportMedia(${item.id})">
-        Signaler cette video
-      </button>
-    `;
+        return;
+    }
 
 
-    container.appendChild(box);
+    container.innerHTML =
+        data.map(function(item) {
 
-  });
 
+            const title =
+                escapeHtml(item.title);
+
+
+            const username =
+                escapeHtml(item.username);
+
+
+            const url =
+                escapeHtml(item.url);
+
+
+            if (item.type === "video") {
+
+                return `
+                    <div class="box">
+
+                        <h2>${title}</h2>
+
+                        <p>
+                            par ${username}
+                        </p>
+
+                        <video
+                            controls
+                            preload="metadata"
+                            style="
+                                max-width:90%;
+                                max-height:500px;
+                            "
+                            src="${url}"
+                        ></video>
+
+                    </div>
+                `;
+            }
+
+
+            if (item.type === "audio") {
+
+                return `
+                    <div class="box">
+
+                        <h2>${title}</h2>
+
+                        <p>
+                            par ${username}
+                        </p>
+
+                        <audio
+                            controls
+                            src="${url}"
+                        ></audio>
+
+                    </div>
+                `;
+            }
+
+
+            return "";
+
+        }).join("");
 }
 
 
@@ -447,4 +389,3 @@ loadMedia();
 
 </body>
 </html>
-```
