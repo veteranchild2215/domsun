@@ -16,6 +16,7 @@
 <h1>DOMSUN TV</h1>
 
 
+
 <div class="box">
 
     <h2>Ajouter une vidéo / audio</h2>
@@ -45,8 +46,43 @@
 </div>
 
 
+
+<div class="box">
+
+    <h2>Ajouter une vidéo YouTube</h2>
+
+    <input
+        type="text"
+        id="youtubeUrl"
+        placeholder="URL YouTube"
+        style="width:80%;"
+    >
+
+    <br>
+
+    <input
+        type="text"
+        id="youtubeTitle"
+        placeholder="titre"
+    >
+
+    <br>
+
+    <button onclick="addYouTube()">
+        ajouter YouTube
+    </button>
+
+    <p id="youtubeStatus"></p>
+
+</div>
+
+
+
+
 <div id="videos">
-    <div class="box">chargement...</div>
+    <div class="box">
+        chargement...
+    </div>
 </div>
 
 
@@ -60,11 +96,14 @@
 <script>
 
 
+
 const container =
     document.getElementById("videos");
 
 const statusText =
     document.getElementById("status");
+
+
 
 
 function escapeHtml(text) {
@@ -84,12 +123,13 @@ function escapeHtml(text) {
 }
 
 
+
+
 async function uploadFile() {
 
     const file =
         document.getElementById("file")
             .files[0];
-
 
     const title =
         document.getElementById("title")
@@ -106,8 +146,6 @@ async function uploadFile() {
     }
 
 
-    /* limite 100 MB */
-
     if (file.size > 100 * 1024 * 1024) {
 
         statusText.textContent =
@@ -121,7 +159,6 @@ async function uploadFile() {
         "upload en cours...";
 
 
-    /* vérifier connexion */
 
     const { data: userData, error: userError } =
         await supabaseClient.auth.getUser();
@@ -140,8 +177,6 @@ async function uploadFile() {
         userData.user;
 
 
-  
-
     const { data: profile, error: profileError } =
         await supabaseClient
             .from("profiles")
@@ -159,14 +194,13 @@ async function uploadFile() {
     }
 
 
-   
 
     const safeName =
         file.name
             .replace(/[^a-zA-Z0-9._-]/g, "_");
 
 
-   
+    /* emplacement dans Storage */
 
     const filePath =
         "uploads/" +
@@ -177,7 +211,6 @@ async function uploadFile() {
         safeName;
 
 
-    
 
     const { error: uploadError } =
         await supabaseClient
@@ -209,8 +242,6 @@ async function uploadFile() {
     }
 
 
-    /* URL publique */
-
     const { data: publicData } =
         supabaseClient
             .storage
@@ -222,18 +253,16 @@ async function uploadFile() {
         publicData.publicUrl;
 
 
-    /* type */
 
-    let type =
-        "audio";
+    let type = "audio";
 
 
     if (file.type.startsWith("video")) {
+
         type = "video";
     }
 
 
-    /* enregistrer dans la DB */
 
     const { error: dbError } =
         await supabaseClient
@@ -279,6 +308,196 @@ async function uploadFile() {
 }
 
 
+
+
+async function addYouTube() {
+
+    const url =
+        document.getElementById("youtubeUrl")
+            .value
+            .trim();
+
+
+    const title =
+        document.getElementById("youtubeTitle")
+            .value
+            .trim();
+
+
+    const status =
+        document.getElementById("youtubeStatus");
+
+
+    if (!url) {
+
+        status.textContent =
+            "mets une URL YouTube";
+
+        return;
+    }
+
+
+    /* vérifier connexion */
+
+    const { data: userData, error: userError } =
+        await supabaseClient.auth.getUser();
+
+
+    if (userError || !userData.user) {
+
+        status.textContent =
+            "tu dois être connecté";
+
+        return;
+    }
+
+
+  
+    const { data: profile, error: profileError } =
+        await supabaseClient
+            .from("profiles")
+            .select("username")
+            .eq("id", userData.user.id)
+            .single();
+
+
+    if (profileError || !profile) {
+
+        status.textContent =
+            "profil introuvable";
+
+        return;
+    }
+
+
+    /* vérifier que c'est bien YouTube */
+
+    let parsedUrl;
+
+    try {
+
+        parsedUrl =
+            new URL(url);
+
+    } catch (e) {
+
+        status.textContent =
+            "URL invalide";
+
+        return;
+    }
+
+
+    const hostname =
+        parsedUrl.hostname
+            .toLowerCase()
+            .replace("www.", "");
+
+
+    if (
+        hostname !== "youtube.com" &&
+        hostname !== "youtu.be" &&
+        hostname !== "m.youtube.com"
+    ) {
+
+        status.textContent =
+            "mets une URL YouTube valide";
+
+        return;
+    }
+
+
+ 
+
+    const { error } =
+        await supabaseClient
+            .from("media_items")
+            .insert({
+
+                username:
+                    profile.username,
+
+                type:
+                    "youtube",
+
+                title:
+                    title || "YouTube",
+
+                url:
+                    url
+
+            });
+
+
+    if (error) {
+
+        status.textContent =
+            "erreur: " +
+            error.message;
+
+        return;
+    }
+
+
+
+
+    document.getElementById("youtubeUrl").value = "";
+    document.getElementById("youtubeTitle").value = "";
+
+
+    status.textContent =
+        "vidéo YouTube ajoutée !";
+
+
+    loadMedia();
+}
+
+
+
+function getYouTubeEmbed(url) {
+
+    try {
+
+        const parsed =
+            new URL(url);
+
+
+        let videoId = "";
+
+
+        if (
+            parsed.hostname === "youtu.be" ||
+            parsed.hostname === "www.youtu.be"
+        ) {
+
+            videoId =
+                parsed.pathname
+                    .replace("/", "");
+
+        } else {
+
+            videoId =
+                parsed.searchParams
+                    .get("v");
+        }
+
+
+        if (!videoId) {
+            return null;
+        }
+
+
+        return "https://www.youtube.com/embed/" +
+            encodeURIComponent(videoId);
+
+    } catch (e) {
+
+        return null;
+    }
+}
+
+
+
 async function loadMedia() {
 
     container.innerHTML =
@@ -318,27 +537,19 @@ async function loadMedia() {
         data.map(function(item) {
 
 
-            const title =
-                escapeHtml(item.title);
-
-
-            const username =
-                escapeHtml(item.username);
-
-
-            const url =
-                escapeHtml(item.url);
-
-
+       
             if (item.type === "video") {
 
                 return `
                     <div class="box">
 
-                        <h2>${title}</h2>
+                        <h2>
+                            ${escapeHtml(item.title)}
+                        </h2>
 
                         <p>
-                            par ${username}
+                            par
+                            ${escapeHtml(item.username)}
                         </p>
 
                         <video
@@ -348,7 +559,7 @@ async function loadMedia() {
                                 max-width:90%;
                                 max-height:500px;
                             "
-                            src="${url}"
+                            src="${escapeHtml(item.url)}"
                         ></video>
 
                     </div>
@@ -356,21 +567,101 @@ async function loadMedia() {
             }
 
 
+       
+
             if (item.type === "audio") {
 
                 return `
                     <div class="box">
 
-                        <h2>${title}</h2>
+                        <h2>
+                            ${escapeHtml(item.title)}
+                        </h2>
 
                         <p>
-                            par ${username}
+                            par
+                            ${escapeHtml(item.username)}
                         </p>
 
                         <audio
                             controls
-                            src="${url}"
+                            src="${escapeHtml(item.url)}"
                         ></audio>
+
+                    </div>
+                `;
+            }
+
+
+
+            if (item.type === "youtube") {
+
+                const embedUrl =
+                    getYouTubeEmbed(item.url);
+
+
+                if (!embedUrl) {
+
+                    return `
+                        <div class="box">
+
+                            <h2>
+                                ${escapeHtml(item.title)}
+                            </h2>
+
+                            <p>
+                                par
+                                ${escapeHtml(item.username)}
+                            </p>
+
+                            <p>
+                                <a
+                                    href="${escapeHtml(item.url)}"
+                                    target="_blank"
+                                    rel="noopener"
+                                >
+                                    regarder sur YouTube
+                                </a>
+                            </p>
+
+                        </div>
+                    `;
+                }
+
+
+                return `
+                    <div class="box">
+
+                        <h2>
+                            ${escapeHtml(item.title)}
+                        </h2>
+
+                        <p>
+                            par
+                            ${escapeHtml(item.username)}
+                        </p>
+
+                        <iframe
+                            width="560"
+                            height="315"
+                            src="${embedUrl}"
+                            title="${escapeHtml(item.title)}"
+                            frameborder="0"
+                            allowfullscreen
+                            style="
+                                max-width:100%;
+                            "
+                        ></iframe>
+
+                        <p>
+                            <a
+                                href="${escapeHtml(item.url)}"
+                                target="_blank"
+                                rel="noopener"
+                            >
+                                ouvrir sur YouTube
+                            </a>
+                        </p>
 
                     </div>
                 `;
@@ -381,6 +672,8 @@ async function loadMedia() {
 
         }).join("");
 }
+
+
 
 
 loadMedia();
