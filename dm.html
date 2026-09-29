@@ -1,375 +1,493 @@
 <!doctype html>
 <html lang="fr">
-
 <head>
 <meta charset="utf-8">
-
-<title>messages</title>
+<title>DOMSUN Messages</title>
 
 <link rel="stylesheet" href="style.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="theme.js"></script>
-
 </head>
 
 <body>
 
-<h1>messages privés</h1>
+<h1>Messages privés</h1>
 
 <div class="box">
 
-<p id="status">chargement...</p>
+    <h2 id="recipientTitle">
+        messages
+    </h2>
 
-<input id="to" placeholder="pseudo a qui">
-
-<br>
-
-<input id="msg" placeholder="ton mesag">
-
-<button id="sendButton">envoyer</button>
+    <div
+        id="messages"
+        style="
+            max-height:500px;
+            overflow-y:auto;
+        "
+    >
+        chargement...
+    </div>
 
 </div>
 
 
-<div id="chat"></div>
+<div class="box">
+
+    <textarea
+        id="message"
+        placeholder="écris ton message..."
+        style="width:90%;min-height:70px;"
+    ></textarea>
+
+    <br>
+
+    <input
+        type="file"
+        id="dmImage"
+        accept="image/*"
+    >
+
+    <br>
+
+    <button onclick="sendMessage()">
+        envoyer
+    </button>
+
+    <p id="status"></p>
+
+</div>
 
 
 <a class="nav" href="index.html">accueil</a>
-
-<a class="nav" href="forum.html">forum</a>
-
 <a class="nav" href="profil.html">profil</a>
+<a class="nav" href="forum.html">forum</a>
 
 
 <script>
 
-const statusBox = document.getElementById("status");
-const chat = document.getElementById("chat");
+const messagesBox =
+    document.getElementById("messages");
 
-const toInput = document.getElementById("to");
-const msgInput = document.getElementById("msg");
-const sendButton = document.getElementById("sendButton");
+const statusText =
+    document.getElementById("status");
 
-let currentUser = null;
-let currentProfile = null;
 
-
-function esc(s){
-
-  return String(s ?? "").replace(
-    /[&<>"']/g,
-    c => ({
-      "&":"&amp;",
-      "<":"&lt;",
-      ">":"&gt;",
-      '"':"&quot;",
-      "'":"&#39;"
-    }[c])
-  );
-
-}
-
-
-// LOGIN
-async function loadUser(){
-
-  const { data, error } =
-    await supabaseClient.auth.getUser();
-
-  if(error){
-
-    statusBox.textContent =
-      "erreur: " + error.message;
-
-    return;
-
-  }
-
-
-  currentUser = data.user;
-
-
-  if(!currentUser){
-
-    statusBox.textContent =
-      "pas connecté";
-
-    return;
-
-  }
-
-
-  const { data: profile, error: profileError } =
-    await supabaseClient
-      .from("profiles")
-      .select("id,username,avatar")
-      .eq("id", currentUser.id)
-      .maybeSingle();
-
-
-  if(profileError){
-
-    statusBox.textContent =
-      "erreur profil: " +
-      profileError.message;
-
-    return;
-
-  }
-
-
-  currentProfile = profile;
-
-
-  statusBox.textContent =
-    "connecté: " +
-    profile.username;
-
-
-  showDM();
-
-}
-
-
-// SHOW MESSAGES
-async function showDM(){
-
-  if(!currentUser) return;
-
-
-  chat.innerHTML =
-    "<div class='box'>chargement...</div>";
-
-
-  const { data, error } =
-    await supabaseClient
-      .from("direct_messages")
-      .select("*")
-      .or(
-        "sender_id.eq." +
-        currentUser.id +
-        ",recipient_id.eq." +
-        currentUser.id
-      )
-      .order("created_at", {
-        ascending:false
-      });
-
-
-  if(error){
-
-    chat.innerHTML =
-      "<div class='box'>" +
-      "<b>erreur messages:</b><br>" +
-      esc(error.message) +
-      "</div>";
-
-    return;
-
-  }
-
-
-  if(!data || data.length === 0){
-
-    chat.innerHTML =
-      "<div class='box'>pas de mesag</div>";
-
-    return;
-
-  }
-
-
-  chat.innerHTML = data.map(x => {
-
-    const mine =
-      x.sender_id === currentUser.id;
-
-
-    return `
-
-      <div class="box">
-
-        <p>
-          <b>
-            ${esc(x.sender_username)}
-            →
-            ${esc(x.recipient_username)}
-          </b>
-        </p>
-
-        <p>
-          ${esc(x.content)}
-        </p>
-
-        <small>
-          ${esc(new Date(x.created_at).toLocaleString())}
-        </small>
-
-        ${
-          mine
-          ?
-          `<br>
-           <button
-             onclick="deleteDM(${x.id})">
-             supprimer
-           </button>`
-          :
-          ""
-        }
-
-      </div>
-
-    `;
-
-  }).join("");
-
-}
-
-
-// SEND
-sendButton.addEventListener(
-  "click",
-  async () => {
-
-    if(!currentUser || !currentProfile){
-
-      alert("connecte toi d'abord");
-
-      return;
-
-    }
-
-
-    const username =
-      toInput.value.trim();
-
-    const message =
-      msgInput.value.trim();
-
-
-    if(!username || !message){
-
-      alert("rempli les deux champs");
-
-      return;
-
-    }
-
-
-    sendButton.disabled = true;
-
-
-    const { data: recipient, error } =
-      await supabaseClient
-        .from("profiles")
-        .select("id,username")
-        .eq("username", username)
-        .maybeSingle();
-
-
-    if(error){
-
-      alert(error.message);
-
-      sendButton.disabled = false;
-
-      return;
-
-    }
-
-
-    if(!recipient){
-
-      alert("utilisateur introuvable");
-
-      sendButton.disabled = false;
-
-      return;
-
-    }
-
-
-    const { error: sendError } =
-      await supabaseClient
-        .from("direct_messages")
-        .insert({
-
-          sender_id: currentUser.id,
-
-          recipient_id: recipient.id,
-
-          sender_username:
-            currentProfile.username,
-
-          recipient_username:
-            recipient.username,
-
-          content: message
-
-        });
-
-
-    if(sendError){
-
-      alert(
-        "erreur: " +
-        sendError.message
-      );
-
-    }
-    else{
-
-      msgInput.value = "";
-
-      showDM();
-
-    }
-
-
-    sendButton.disabled = false;
-
-  }
-);
-
-
-// DELETE
-async function deleteDM(id){
-
-  if(!confirm("supprimer ce message ?")){
-
-    return;
-
-  }
-
-
-  const { error } =
-    await supabaseClient
-      .from("direct_messages")
-      .delete()
-      .eq("id", id)
-      .eq("sender_id", currentUser.id);
-
-
-  if(error){
-
-    alert(
-      "erreur suppression: " +
-      error.message
+const params =
+    new URLSearchParams(
+        window.location.search
     );
 
-    return;
+const recipientUsername =
+    params.get("to");
 
-  }
+
+let currentUser = null;
+let recipientUser = null;
 
 
-  showDM();
+function escapeHtml(text) {
 
+    return String(text || "")
+        .replace(/[&<>"']/g, function(c) {
+
+            return {
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            }[c];
+
+        });
 }
 
 
-loadUser();
+async function init() {
+
+    const { data, error } =
+        await supabaseClient.auth.getUser();
+
+
+    if (error || !data.user) {
+
+        messagesBox.innerHTML =
+            '<div class="box">tu dois être connecté</div>';
+
+        return;
+    }
+
+
+    currentUser =
+        data.user;
+
+
+    if (!recipientUsername) {
+
+        messagesBox.innerHTML =
+            '<div class="box">aucun destinataire sélectionné</div>';
+
+        return;
+    }
+
+
+    document.getElementById(
+        "recipientTitle"
+    ).textContent =
+        "conversation avec " +
+        recipientUsername;
+
+
+    const { data: recipient, error: recipientError } =
+        await supabaseClient
+            .from("profiles")
+            .select("id,username")
+            .eq("username", recipientUsername)
+            .single();
+
+
+    if (recipientError || !recipient) {
+
+        messagesBox.innerHTML =
+            '<div class="box">utilisateur introuvable</div>';
+
+        return;
+    }
+
+
+    recipientUser =
+        recipient;
+
+
+    loadMessages();
+}
+
+
+async function sendMessage() {
+
+    if (!currentUser || !recipientUser) {
+        return;
+    }
+
+
+    const content =
+        document.getElementById("message")
+            .value
+            .trim();
+
+
+    const imageFile =
+        document.getElementById("dmImage")
+            .files[0];
+
+
+    if (!content && !imageFile) {
+
+        statusText.textContent =
+            "écris un message ou choisis une image";
+
+        return;
+    }
+
+
+    statusText.textContent =
+        "envoi...";
+
+
+  
+
+    const { data: profile } =
+        await supabaseClient
+            .from("profiles")
+            .select("username")
+            .eq("id", currentUser.id)
+            .single();
+
+
+    if (!profile) {
+
+        statusText.textContent =
+            "profil introuvable";
+
+        return;
+    }
+
+
+    /* upload image */
+
+    let imageUrl = null;
+
+
+    if (imageFile) {
+
+        if (imageFile.size > 5 * 1024 * 1024) {
+
+            statusText.textContent =
+                "image trop grande (maximum 5 MB)";
+
+            return;
+        }
+
+
+        if (!imageFile.type.startsWith("image/")) {
+
+            statusText.textContent =
+                "fichier non valide";
+
+            return;
+        }
+
+
+        const safeName =
+            imageFile.name
+                .replace(/[^a-zA-Z0-9._-]/g, "_");
+
+
+        const filePath =
+            "messages/" +
+            currentUser.id +
+            "/" +
+            Date.now() +
+            "_" +
+            safeName;
+
+
+        const { error: uploadError } =
+            await supabaseClient
+                .storage
+                .from("media")
+                .upload(
+                    filePath,
+                    imageFile,
+                    {
+                        contentType:
+                            imageFile.type,
+
+                        upsert: false
+                    }
+                );
+
+
+        if (uploadError) {
+
+            statusText.textContent =
+                "erreur upload: " +
+                uploadError.message;
+
+            return;
+        }
+
+
+        const { data: publicData } =
+            supabaseClient
+                .storage
+                .from("media")
+                .getPublicUrl(filePath);
+
+
+        imageUrl =
+            publicData.publicUrl;
+    }
+
+
+    /* envoyer */
+
+    const { error } =
+        await supabaseClient
+            .from("direct_messages")
+            .insert({
+
+                sender_id:
+                    currentUser.id,
+
+                recipient_id:
+                    recipientUser.id,
+
+                sender_username:
+                    profile.username,
+
+                recipient_username:
+                    recipientUser.username,
+
+                content:
+                    content || "",
+
+                image_url:
+                    imageUrl
+
+            });
+
+
+    if (error) {
+
+        statusText.textContent =
+            "erreur: " +
+            error.message;
+
+        return;
+    }
+
+
+    document.getElementById("message").value = "";
+    document.getElementById("dmImage").value = "";
+
+    statusText.textContent =
+        "envoyé !";
+
+    loadMessages();
+}
+
+
+async function deleteMessage(id) {
+
+    if (!confirm("supprimer ce message ?")) {
+        return;
+    }
+
+
+    const { error } =
+        await supabaseClient
+            .from("direct_messages")
+            .delete()
+            .eq("id", id);
+
+
+    if (error) {
+
+        alert(
+            "erreur: " +
+            error.message
+        );
+
+        return;
+    }
+
+
+    loadMessages();
+}
+
+
+async function loadMessages() {
+
+    if (!currentUser || !recipientUser) {
+        return;
+    }
+
+
+    const { data, error } =
+        await supabaseClient
+            .from("direct_messages")
+            .select("*")
+            .or(
+                `and(sender_id.eq.${currentUser.id},recipient_id.eq.${recipientUser.id}),and(sender_id.eq.${recipientUser.id},recipient_id.eq.${currentUser.id})`
+            )
+            .order("created_at", {
+                ascending: true
+            });
+
+
+    if (error) {
+
+        messagesBox.innerHTML =
+            '<div class="box">erreur: ' +
+            escapeHtml(error.message) +
+            '</div>';
+
+        return;
+    }
+
+
+    if (!data || data.length === 0) {
+
+        messagesBox.innerHTML =
+            '<div class="box">aucun message</div>';
+
+        return;
+    }
+
+
+    messagesBox.innerHTML =
+        data.map(function(message) {
+
+            const mine =
+                message.sender_id === currentUser.id;
+
+
+            const date =
+                message.created_at
+                    ? new Date(
+                        message.created_at
+                    ).toLocaleString("fr-FR")
+                    : "";
+
+
+            let image = "";
+
+            if (message.image_url) {
+
+                image =
+                    `<br>
+                    <img
+                        src="${escapeHtml(message.image_url)}"
+                        style="
+                            max-width:400px;
+                            max-height:400px;
+                            object-fit:contain;
+                            border:1px solid #777;
+                            border-radius:0;
+                            margin-top:6px;
+                        "
+                    >`;
+            }
+
+
+            let deleteButton = "";
+
+            if (mine) {
+
+                deleteButton =
+                    `<br>
+                    <button
+                        onclick="deleteMessage(${message.id})"
+                    >
+                        supprimer
+                    </button>`;
+            }
+
+
+            return `
+                <div class="box">
+
+                    <b>
+                        ${escapeHtml(message.sender_username)}
+                    </b>
+
+                    <small>
+                        — ${escapeHtml(date)}
+                    </small>
+
+                    <p>
+                        ${escapeHtml(message.content)}
+                    </p>
+
+                    ${image}
+
+                    ${deleteButton}
+
+                </div>
+            `;
+
+        }).join("");
+
+
+    messagesBox.scrollTop =
+        messagesBox.scrollHeight;
+}
+
+
+init();
 
 </script>
 
