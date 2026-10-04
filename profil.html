@@ -3,10 +3,35 @@
 
 <head>
 <meta charset="utf-8">
-<title>profil</title>
+<title>profil - DOMSUN</title>
 
 <link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
 <script src="theme.js"></script>
+
+<style>
+.avatar {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 0;
+  display: block;
+  margin-top: 10px;
+}
+
+.friend {
+  padding: 8px;
+  margin: 5px 0;
+  border: 1px solid #888;
+}
+
+.error {
+  color: red;
+  font-weight: bold;
+}
+</style>
 
 </head>
 
@@ -14,325 +39,577 @@
 
 <h1>mon profil</h1>
 
-
 <div class="box">
 
-<p>photo profil:</p>
+  <p id="status">chargement du profil...</p>
 
-<input
+  <p>photo profil:</p>
+
+  <input
     type="file"
     id="img"
     accept="image/*"
->
+  >
 
-<br>
+  <br><br>
 
+  <p>pseudo:</p>
 
-<p>pseudo:</p>
-
-<input
+  <input
     id="pseudo"
     placeholder="ton pseudo"
->
+  >
 
+  <br><br>
 
-<br>
+  <p>bio:</p>
 
-
-<p>bio:</p>
-
-<textarea
+  <textarea
     id="bio"
     placeholder="je sui domsun tro for"
-></textarea>
+  ></textarea>
 
-<br>
+  <br><br>
 
-
-<button onclick="save()">
+  <button onclick="saveProfile()">
     sauver profil
-</button>
+  </button>
 
+  <h2>preview</h2>
 
-<h2>preview</h2>
-
-<img
+  <img
     id="preview"
     class="avatar"
->
+    style="display:none;"
+  >
 
-<p id="showpseudo"></p>
-
-<p id="showbio"></p>
+  <p id="showpseudo"></p>
+  <p id="showbio"></p>
 
 </div>
-
-
 
 
 <div class="box">
 
-<h2>amis</h2>
+  <h2>amis</h2>
 
-
-<input
+  <input
     id="friendname"
     placeholder="pseudo ami"
->
+  >
 
-
-<button onclick="addFriend()">
+  <button onclick="addFriend()">
     ajouter
-</button>
+  </button>
 
-
-<div id="friends"></div>
+  <div id="friends">
+    chargement...
+  </div>
 
 </div>
 
 
+<a class="nav" href="index.html">accueil</a>
 
-<a class="nav" href="index.html">
-    accueil
-</a>
+<a class="nav" href="forum.html">forum</a>
 
-<a class="nav" href="forum.html">
-    forum
-</a>
-
-<a class="nav" href="dm.html">
-    messages
-</a>
-
+<a class="nav" href="dm.html">messages</a>
 
 
 <script>
 
+const statusText =
+  document.getElementById("status");
 
 
 
-function show() {
+function escapeHtml(text) {
 
-    const p =
-        localStorage.getItem("pseudo")
-        || "anonymous";
+  return String(text || "").replace(
+    /[&<>"']/g,
+    function(c) {
 
-    const b =
-        localStorage.getItem("bio")
-        || "";
-
-    const a =
-        localStorage.getItem("avatar");
-
-
-    document.getElementById("pseudo").value = p;
-
-    document.getElementById("bio").value = b;
-
-    document.getElementById("showpseudo").textContent =
-        "pseudo: " + p;
-
-    document.getElementById("showbio").textContent =
-        "bio: " + b;
-
-
-    if (a) {
-
-        document.getElementById("preview").src = a;
+      return {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[c];
 
     }
+  );
+
+}
+
+
+
+async function loadProfile() {
+
+  statusText.textContent =
+    "chargement du profil...";
+
+  const {
+    data: userData,
+    error: userError
+  } = await supabaseClient.auth.getUser();
+
+
+  if (userError || !userData.user) {
+
+    statusText.textContent =
+      "tu dois être connecté pour voir ton profil";
+
+    return;
+  }
+
+
+  const user = userData.user;
+
+
+  
+
+  const {
+    data: profile,
+    error: profileError
+  } = await supabaseClient
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+
+
+  if (profileError) {
+
+    console.error(profileError);
+
+    statusText.textContent =
+      "erreur profil: " +
+      profileError.message;
+
+    return;
+  }
+
+
+
+
+  if (!profile) {
+
+    const username =
+      user.user_metadata?.username ||
+      user.email?.split("@")[0] ||
+      "user";
+
+
+    const {
+      data: newProfile,
+      error: createError
+    } = await supabaseClient
+      .from("profiles")
+      .insert({
+
+        id: user.id,
+
+        username: username
+
+      })
+      .select()
+      .maybeSingle();
+
+
+    if (createError) {
+
+      console.error(createError);
+
+      statusText.textContent =
+        "profil manquant et impossible à créer: " +
+        createError.message;
+
+      return;
+    }
+
+
+    loadProfileData(newProfile);
+
+    statusText.textContent =
+      "profil créé automatiquement";
+
+    return;
+  }
+
+
+ 
+
+  loadProfileData(profile);
+
+  statusText.textContent = "";
 
 }
 
 
 
 
-function save() {
+function loadProfileData(profile) {
 
-    const p =
-        document.getElementById("pseudo")
-            .value
-            .trim()
-        || "anonymous";
+  const username =
+    profile.username || "anonymous";
 
+  const bio =
+    profile.bio || "";
 
-    const b =
-        document.getElementById("bio")
-            .value;
+  document.getElementById("pseudo").value =
+    username;
 
+  document.getElementById("bio").value =
+    bio;
 
-    localStorage.setItem(
-        "pseudo",
-        p
-    );
+  document.getElementById("showpseudo").textContent =
+    "pseudo: " + username;
 
-
-    localStorage.setItem(
-        "bio",
-        b
-    );
+  document.getElementById("showbio").textContent =
+    "bio: " + bio;
 
 
-    const file =
-        document.getElementById("img")
-            .files[0];
+  if (profile.avatar) {
 
+    const preview =
+      document.getElementById("preview");
 
-    if (file) {
+    preview.src =
+      profile.avatar;
 
-        const reader =
-            new FileReader();
-
-
-        reader.onload = function() {
-
-            localStorage.setItem(
-                "avatar",
-                reader.result
-            );
-
-
-            show();
-
-        };
-
-
-        reader.readAsDataURL(file);
-
-    } else {
-
-        show();
-
-    }
-
-
-    alert("profil sauve");
+    preview.style.display =
+      "block";
+  }
 
 }
 
 
+
+
+async function saveProfile() {
+
+  const pseudo =
+    document.getElementById("pseudo")
+      .value
+      .trim();
+
+  const bio =
+    document.getElementById("bio")
+      .value
+      .trim();
+
+
+  if (!pseudo) {
+
+    statusText.textContent =
+      "mets un pseudo";
+
+    return;
+  }
+
+
+  statusText.textContent =
+    "sauvegarde...";
+
+
+  const {
+    data: userData,
+    error: userError
+  } = await supabaseClient.auth.getUser();
+
+
+  if (userError || !userData.user) {
+
+    statusText.textContent =
+      "tu dois être connecté";
+
+    return;
+  }
+
+
+  const user =
+    userData.user;
+
+
+
+
+  let avatarUrl = null;
+
+  const file =
+    document.getElementById("img").files[0];
+
+
+  if (file) {
+
+    if (!file.type.startsWith("image/")) {
+
+      statusText.textContent =
+        "le fichier doit être une image";
+
+      return;
+    }
+
+
+    if (file.size > 15 * 1024 * 1024) {
+
+      statusText.textContent =
+        "image trop grosse (maximum 15 MB)";
+
+      return;
+    }
+
+
+    const safeName =
+      file.name.replace(
+        /[^a-zA-Z0-9._-]/g,
+        "_"
+      );
+
+
+    const filePath =
+      "avatars/" +
+      user.id +
+      "/" +
+      Date.now() +
+      "_" +
+      safeName;
+
+
+  
+
+    const {
+      error: uploadError
+    } = await supabaseClient
+      .storage
+      .from("media")
+      .upload(
+        filePath,
+        file,
+        {
+          contentType: file.type,
+          cacheControl: "3600",
+          upsert: false
+        }
+      );
+
+
+    if (uploadError) {
+
+      statusText.textContent =
+        "erreur avatar: " +
+        uploadError.message;
+
+      return;
+    }
+
+
+    const {
+      data: publicData
+    } = supabaseClient
+      .storage
+      .from("media")
+      .getPublicUrl(filePath);
+
+
+    avatarUrl =
+      publicData.publicUrl;
+
+  }
+
+
+
+  const updateData = {
+
+    username: pseudo,
+
+    bio: bio
+
+  };
+
+
+  if (avatarUrl) {
+
+    updateData.avatar =
+      avatarUrl;
+
+  }
+
+
+  const {
+    data: updatedProfile,
+    error: updateError
+  } = await supabaseClient
+    .from("profiles")
+    .update(updateData)
+    .eq("id", user.id)
+    .select()
+    .maybeSingle();
+
+
+  if (updateError) {
+
+    /*
+    If the row disappeared for some reason,
+    create it instead.
+    */
+
+    const {
+      error: insertError
+    } = await supabaseClient
+      .from("profiles")
+      .insert({
+
+        id: user.id,
+
+        username: pseudo,
+
+        bio: bio,
+
+        avatar: avatarUrl
+
+      });
+
+
+    if (insertError) {
+
+      statusText.textContent =
+        "erreur sauvegarde: " +
+        insertError.message;
+
+      return;
+    }
+
+  }
+
+
+
+  document.getElementById("showpseudo")
+    .textContent =
+    "pseudo: " + pseudo;
+
+  document.getElementById("showbio")
+    .textContent =
+    "bio: " + bio;
+
+
+  if (avatarUrl) {
+
+    const preview =
+      document.getElementById("preview");
+
+    preview.src =
+      avatarUrl;
+
+    preview.style.display =
+      "block";
+  }
+
+
+  statusText.textContent =
+    "profil sauvegardé !";
+
+
+  setTimeout(function() {
+
+    statusText.textContent = "";
+
+  }, 1500);
+
+}
 
 
 
 function addFriend() {
 
-    const f =
-        document.getElementById("friendname")
-            .value
-            .trim();
+  const input =
+    document.getElementById("friendname");
+
+  const name =
+    input.value.trim();
 
 
-    if (!f) {
-        return;
-    }
+  if (!name) return;
 
 
-    const list =
-        JSON.parse(
-            localStorage.getItem("friends")
-            || "[]"
-        );
-
-
-    if (!list.includes(f)) {
-
-        list.push(f);
-
-    }
-
-
-    localStorage.setItem(
-        "friends",
-        JSON.stringify(list)
+  const list =
+    JSON.parse(
+      localStorage.getItem("friends") ||
+      "[]"
     );
 
 
-    document.getElementById(
-        "friendname"
-    ).value = "";
+  if (!list.includes(name)) {
+
+    list.push(name);
+
+  }
 
 
-    showFriends();
+  localStorage.setItem(
+    "friends",
+    JSON.stringify(list)
+  );
+
+
+  input.value = "";
+
+  showFriends();
 
 }
-
 
 
 function showFriends() {
 
-    const list =
-        JSON.parse(
-            localStorage.getItem("friends")
-            || "[]"
-        );
+  const list =
+    JSON.parse(
+      localStorage.getItem("friends") ||
+      "[]"
+    );
 
 
-    const friends =
-        document.getElementById("friends");
+  const container =
+    document.getElementById("friends");
 
 
-    if (list.length === 0) {
+  if (list.length === 0) {
 
-        friends.innerHTML =
-            "<p>pas dami encore</p>";
+    container.innerHTML =
+      "<p>pas dami encore</p>";
 
-        return;
-    }
-
-
-    friends.innerHTML =
-        list.map(function(x) {
-
-            return `
-                <p>
-
-                    💙 ${escapeHtml(x)}
-
-                    <button
-                        onclick="location.href='dm.html?to=${encodeURIComponent(x)}'"
-                    >
-                        message
-                    </button>
-
-                </p>
-            `;
-
-        }).join("");
-
-}
+    return;
+  }
 
 
+  container.innerHTML =
+    list.map(function(name) {
 
+      return `
+        <div class="friend">
 
+          <b>
+            ${escapeHtml(name)}
+          </b>
 
-function escapeHtml(s) {
+          <button
+            onclick="location.href='dm.html?to=${encodeURIComponent(name)}'"
+          >
+            message
+          </button>
 
-    return String(s)
-        .replace(
-            /[&<>"']/g,
-            function(c) {
+        </div>
+      `;
 
-                return {
-                    "&": "&amp;",
-                    "<": "&lt;",
-                    ">": "&gt;",
-                    '"': "&quot;",
-                    "'": "&#039;"
-                }[c];
-
-            }
-        );
+    }).join("");
 
 }
 
 
-
-show();
+loadProfile();
 
 showFriends();
 
 </script>
 
 </body>
-
 </html>
