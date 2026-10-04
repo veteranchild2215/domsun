@@ -14,17 +14,13 @@
 
 </head>
 
-
 <body>
 
 <h1>DOMSUN Forum</h1>
 
-
 <div class="box">
 
-  <p>
-    Tu peux poster sans créer de compte.
-  </p>
+  <p>Tu peux poster sans créer de compte.</p>
 
   <input
     id="username"
@@ -52,68 +48,46 @@
 
   <br><br>
 
-  <button onclick="sendPost()">
-    envoyer
-  </button>
+  <button onclick="sendPost()">envoyer</button>
 
   <p id="status"></p>
 
 </div>
 
-
 <div id="chat">
-  <div class="box">
-    chargement...
-  </div>
+  <div class="box">chargement...</div>
 </div>
-
 
 <br>
 
 <a class="nav" href="index.html">accueil</a>
-
 <a class="nav" href="profil.html">profil</a>
-
 <a class="nav" href="dm.html">messages</a>
-
 
 <script>
 
-
-
-
-
 const chat = document.getElementById("chat");
-
 const statusText = document.getElementById("status");
-
-
 
 
 function escapeHtml(text) {
 
   return String(text || "").replace(
     /[&<>"']/g,
-
     function(c) {
 
       return {
-
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
         '"': "&quot;",
         "'": "&#039;"
-
       }[c];
 
     }
-
   );
 
 }
-
-
 
 
 function getUsername() {
@@ -125,16 +99,12 @@ function getUsername() {
     input.value.trim();
 
   if (!name) {
-
     name = "anonymous";
-
   }
 
   return name.substring(0, 30);
 
 }
-
-
 
 
 async function sendPost() {
@@ -152,10 +122,6 @@ async function sendPost() {
       .files[0];
 
 
-  /*
-  Nothing to send
-  */
-
   if (!message && !imageFile) {
 
     statusText.textContent =
@@ -166,6 +132,7 @@ async function sendPost() {
   }
 
 
+  /* Check image */
 
   if (imageFile) {
 
@@ -179,7 +146,7 @@ async function sendPost() {
     }
 
 
-    if (imageFile.size > 10 * 1024 * 1024) {
+    if (imageFile.size > 15 * 1024 * 1024) {
 
       statusText.textContent =
         "image trop grosse (maximum 10 MB)";
@@ -191,13 +158,10 @@ async function sendPost() {
   }
 
 
-  statusText.textContent =
-    "envoi...";
+  statusText.textContent = "envoi...";
 
 
   let imageUrl = null;
-
-
 
 
   if (imageFile) {
@@ -239,10 +203,7 @@ async function sendPost() {
 
     if (uploadError) {
 
-      console.error(
-        "Image upload error:",
-        uploadError
-      );
+      console.error(uploadError);
 
       statusText.textContent =
         "erreur image: " +
@@ -252,8 +213,6 @@ async function sendPost() {
 
     }
 
-
-    
 
     const {
       data: publicData
@@ -268,8 +227,6 @@ async function sendPost() {
       publicData.publicUrl;
 
   }
-
-
 
 
   const {
@@ -294,10 +251,7 @@ async function sendPost() {
 
   if (dbError) {
 
-    console.error(
-      "Database error:",
-      dbError
-    );
+    console.error(dbError);
 
     statusText.textContent =
       "erreur message: " +
@@ -308,19 +262,16 @@ async function sendPost() {
   }
 
 
-  /*
-  Clear inputs
-  */
+  /* Clear inputs */
 
-  document.getElementById("msg")
-    .value = "";
+  document.getElementById("msg").value = "";
 
-  document.getElementById("forumImage")
-    .value = "";
+  document.getElementById("forumImage").value = "";
 
 
   statusText.textContent =
     "message envoyé !";
+
 
 
 
@@ -336,28 +287,24 @@ async function sendPost() {
 }
 
 
-
 function render(posts) {
 
   if (!posts || posts.length === 0) {
 
     chat.innerHTML =
-      "<div class='box'>" +
-      "pas de messages" +
-      "</div>";
+      "<div class='box'>pas de messages</div>";
 
     return;
 
   }
 
 
-  chat.innerHTML = posts.map(
-    function(post) {
+  chat.innerHTML =
+    posts.map(function(post) {
 
       const username =
         escapeHtml(
-          post.username ||
-          "anonymous"
+          post.username || "anonymous"
         );
 
 
@@ -369,10 +316,6 @@ function render(posts) {
 
       let imageHTML = "";
 
-
-      /*
-      Display image
-      */
 
       if (post.image_url) {
 
@@ -414,20 +357,15 @@ function render(posts) {
 
       );
 
-    }
-  ).join("");
+    }).join("");
 
 }
-
-
 
 
 async function loadPosts() {
 
   chat.innerHTML =
-    "<div class='box'>" +
-    "chargement..." +
-    "</div>";
+    "<div class='box'>chargement...</div>";
 
 
   const {
@@ -442,7 +380,7 @@ async function loadPosts() {
       .order(
         "created_at",
         {
-          ascending: true
+          ascending: false
         }
       );
 
@@ -462,9 +400,7 @@ async function loadPosts() {
 
         "<br><br>" +
 
-        escapeHtml(
-          error.message
-        ) +
+        escapeHtml(error.message) +
 
       "</div>";
 
@@ -476,8 +412,6 @@ async function loadPosts() {
   render(data);
 
 }
-
-
 
 
 document
@@ -500,10 +434,7 @@ document
     }
   );
 
-
-
 loadPosts();
-
 
 </script>
 
