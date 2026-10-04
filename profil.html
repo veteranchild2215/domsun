@@ -2,9 +2,10 @@
 <html lang="fr">
 
 <head>
+
 <meta charset="utf-8">
 
-<title>DOMSUN Profil</title>
+<title>profil - domsun</title>
 
 <link rel="stylesheet" href="style.css">
 
@@ -27,25 +28,67 @@
 }
 
 .profile-avatar {
-  width: 150px;
-  height: 150px;
+  width: 140px;
+  height: 140px;
   object-fit: cover;
   border-radius: 0;
+  border: 2px solid #555;
   display: block;
   margin: 15px auto;
 }
 
+.profile-name {
+  font-size: 24px;
+  margin: 10px 0;
+}
+
 .profile-bio {
-  white-space: pre-wrap;
-  word-break: break-word;
+  margin: 15px auto;
+  padding: 12px;
+  max-width: 500px;
 }
 
-.profile-actions {
-  margin-top: 20px;
+.profile-date {
+  margin: 15px 0;
+  font-size: 14px;
 }
 
-.profile-actions button {
-  margin: 5px;
+.profile-button {
+  margin: 8px;
+  padding: 8px 18px;
+  cursor: pointer;
+}
+
+.edit-box {
+  margin-top: 25px;
+  padding: 15px;
+}
+
+.edit-box input,
+.edit-box textarea {
+  width: 90%;
+  max-width: 500px;
+  margin: 6px;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.edit-box textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.hidden {
+  display: none;
+}
+
+.error {
+  color: red;
+  margin: 20px;
+}
+
+#messageArea {
+  margin: 15px 0;
 }
 
 </style>
@@ -55,121 +98,118 @@
 
 <body>
 
-<h1>DOMSUN Profil</h1>
+
+<h1>profil</h1>
 
 
 <div class="profile-page">
 
-  <div class="profile-card">
+  <div class="profile-card box">
+
+    <div id="loading">
+      chargement...
+    </div>
 
 
-    <div class="box">
+    <div id="profileContent" class="hidden">
 
-      <div id="profileContent">
-        chargement...
+
+      <img
+        id="avatar"
+        class="profile-avatar"
+        src=""
+        alt="avatar"
+      >
+
+
+
+      <div
+        id="username"
+        class="profile-name">
+      </div>
+
+
+
+      <div
+        id="bio"
+        class="profile-bio">
+      </div>
+
+
+
+      <div
+        id="createdAt"
+        class="profile-date">
+      </div>
+
+
+
+      <div id="messageArea" class="hidden">
+
+        <button
+          id="messageButton"
+          class="profile-button"
+          type="button">
+          envoyer un message
+        </button>
+
+      </div>
+
+
+
+      <div
+        id="editArea"
+        class="edit-box hidden">
+
+        <h3>modifier mon profil</h3>
+
+
+        <input
+          id="editUsername"
+          type="text"
+          placeholder="nom d'utilisateur"
+        >
+
+
+        <br>
+
+
+        <textarea
+          id="editBio"
+          placeholder="ta bio"></textarea>
+
+
+        <br>
+
+
+        <input
+          id="avatarFile"
+          type="file"
+          accept="image/*"
+        >
+
+
+        <br>
+
+
+        <button
+          class="profile-button"
+          id="saveButton"
+          type="button">
+          enregistrer
+        </button>
+
+
+        <p id="editStatus"></p>
+
       </div>
 
     </div>
 
 
-    <br>
-
-
     <div
-      class="box"
-      id="editBox"
-      style="display:none;"
-    >
-
-      <h2>Modifier mon profil</h2>
-
-
-      <label>
-        pseudo
-      </label>
-
-      <br>
-
-      <input
-        id="editUsername"
-        type="text"
-        maxlength="30"
-      >
-
-
-      <br><br>
-
-
-      <label>
-        bio
-      </label>
-
-      <br>
-
-      <textarea
-        id="editBio"
-        maxlength="500"
-        style="width:90%;height:100px;"
-      ></textarea>
-
-
-      <br><br>
-
-
-      <label>
-        avatar
-      </label>
-
-      <br>
-
-      <input
-        id="avatarFile"
-        type="file"
-        accept="image/*"
-      >
-
-
-      <br><br>
-
-
-      <button onclick="saveProfile()">
-        enregistrer
-      </button>
-
-
-      <p id="saveStatus"></p>
-
-    </div>
-
-
-    <br>
-
-
-    <div class="profile-actions">
-
-      <a
-        class="nav"
-        href="index.html"
-      >
-        accueil
-      </a>
-
-
-      <a
-        class="nav"
-        href="forum.html"
-      >
-        forum
-      </a>
-
-
-      <a
-        class="nav"
-        href="dm.html"
-      >
-        messages
-      </a>
-
+      id="error"
+      class="error hidden">
     </div>
 
   </div>
@@ -177,39 +217,34 @@
 </div>
 
 
+<a
+  class="nav"
+  href="index.html">
+  accueil
+</a>
+
+
+<a
+  class="nav"
+  href="forum.html">
+  forum
+</a>
+
+
 <script>
 
 
-const profileContent =
-  document.getElementById("profileContent");
-
-const editBox =
-  document.getElementById("editBox");
-
-const editUsername =
-  document.getElementById("editUsername");
-
-const editBio =
-  document.getElementById("editBio");
-
-const avatarFile =
-  document.getElementById("avatarFile");
-
-const saveStatus =
-  document.getElementById("saveStatus");
 
 
 let currentUser = null;
-
-let currentProfile = null;
-
 let viewedProfile = null;
 
 
 
-function escapeHtml(text) {
 
-  return String(text || "").replace(
+function esc(text) {
+
+  return String(text ?? "").replace(
     /[&<>"']/g,
     function(c) {
 
@@ -218,7 +253,8 @@ function escapeHtml(text) {
         "<": "&lt;",
         ">": "&gt;",
         '"': "&quot;",
-        "'": "&#039;"
+        "'": "&#39;"
+
       }[c];
 
     }
@@ -228,260 +264,346 @@ function escapeHtml(text) {
 
 
 
-function getRequestedUsername() {
+
+async function getCurrentUser() {
+
+  const {
+    data,
+    error
+  } = await supabaseClient.auth.getUser();
+
+
+  if (error) {
+
+    console.error(
+      "Auth error:",
+      error
+    );
+
+    return null;
+
+  }
+
+
+  return data.user || null;
+
+}
+
+
+
+
+async function loadProfile() {
+
+  loading.classList.remove("hidden");
+
+  profileContent.classList.add("hidden");
+
+  error.classList.add("hidden");
+
+
+  
+
+  currentUser =
+    await getCurrentUser();
+
 
   const params =
     new URLSearchParams(
       window.location.search
     );
 
-  return params.get("user");
 
-}
-
-
-async function loadCurrentUser() {
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient.auth.getUser();
+  const requestedUsername =
+    params.get("user");
 
 
-  if (error) {
+  
 
-    console.error(error);
+  if (requestedUsername) {
 
-  }
-
-
-  currentUser =
-    data && data.user
-      ? data.user
-      : null;
-
-}
-
-
-
-async function loadMyProfile() {
-
-  if (!currentUser) {
-
-    return null;
-
-  }
-
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient
+    const {
+      data,
+      error: profileError
+    } = await supabaseClient
       .from("profiles")
-      .select("*")
-      .eq("id", currentUser.id)
+      .select(
+        "id, username, avatar, bio, created_at"
+      )
+      .eq(
+        "username",
+        requestedUsername
+      )
       .maybeSingle();
 
 
-  if (error) {
+    if (profileError) {
 
-    console.error(error);
+      console.error(
+        "Profile error:",
+        profileError
+      );
 
-    return null;
+      showError(
+        "erreur chargement profil : " +
+        profileError.message
+      );
+
+      return;
+
+    }
+
+
+    if (!data) {
+
+      showError(
+        "profil introuvable"
+      );
+
+      return;
+
+    }
+
+
+    viewedProfile = data;
 
   }
 
 
-  return data;
+  else {
 
-}
+    if (!currentUser) {
+
+      showError(
+        "tu dois être connecté pour voir ton profil"
+      );
+
+      return;
+
+    }
 
 
-
-async function loadProfileByUsername(username) {
-
-  const {
-    data,
-    error
-  } =
-    await supabaseClient
+    const {
+      data,
+      error: profileError
+    } = await supabaseClient
       .from("profiles")
-      .select("*")
-      .eq("username", username)
+      .select(
+        "id, username, avatar, bio, created_at"
+      )
+      .eq(
+        "id",
+        currentUser.id
+      )
       .maybeSingle();
 
 
-  if (error) {
+    if (profileError) {
 
-    console.error(error);
+      console.error(
+        "Profile error:",
+        profileError
+      );
 
-    return null;
+      showError(
+        "erreur chargement profil : " +
+        profileError.message
+      );
+
+      return;
+
+    }
+
+
+    if (!data) {
+
+      showError(
+        "ton profil n'existe pas encore"
+      );
+
+      return;
+
+    }
+
+
+    viewedProfile = data;
 
   }
 
 
-  return data;
+  displayProfile();
 
 }
-function renderProfile(profile, isOwnProfile) {
-
-  if (!profile) {
-
-    profileContent.innerHTML =
-      "<h2>Profil introuvable</h2>" +
-
-      "<p>Ce profil n'existe pas.</p>";
-
-    editBox.style.display =
-      "none";
-
-    return;
-
-  }
 
 
-  const username =
-    escapeHtml(
-      profile.username || "user"
-    );
 
 
-  const bio =
-    escapeHtml(
-      profile.bio || "Pas encore de bio."
-    );
+function displayProfile() {
+
+  loading.classList.add("hidden");
+
+  profileContent.classList.remove("hidden");
 
 
-  let avatarHTML = "";
+  username.textContent =
+    viewedProfile.username;
 
 
-  if (profile.avatar) {
 
-    avatarHTML =
+  if (
+    viewedProfile.bio &&
+    viewedProfile.bio.trim()
+  ) {
 
-      "<img " +
-
-      "class='profile-avatar' " +
-
-      "src=\"" +
-      escapeHtml(profile.avatar) +
-      "\" " +
-
-      "alt=\"avatar\">";
+    bio.textContent =
+      viewedProfile.bio;
 
   }
 
   else {
 
-    avatarHTML =
-
-      "<div " +
-
-      "class='profile-avatar' " +
-
-      "style=\"" +
-      "border:1px solid #888;" +
-      "display:flex;" +
-      "align-items:center;" +
-      "justify-content:center;" +
-      "\">" +
-
-      "pas d'avatar" +
-
-      "</div>";
+    bio.textContent =
+      "pas de bio";
 
   }
 
 
-  let buttonsHTML = "";
+ 
 
+  if (viewedProfile.avatar) {
 
+    avatar.src =
+      viewedProfile.avatar;
 
-  if (!isOwnProfile) {
+  }
 
-    buttonsHTML =
+  else {
 
-      "<br>" +
-
-      "<button " +
-
-      "onclick=\"openMessage('" +
-
-      escapeHtml(
-        profile.username
-      ) +
-
-      "')\">" +
-
-      "envoyer un message" +
-
-      "</button>";
+    avatar.src =
+      "data:image/svg+xml;charset=UTF-8," +
+      encodeURIComponent(
+        "<svg xmlns='http://www.w3.org/2000/svg' " +
+        "width='140' height='140'>" +
+        "<rect width='140' height='140' fill='#ddd'/>" +
+        "<text x='70' y='78' " +
+        "text-anchor='middle' " +
+        "font-size='18'>avatar</text>" +
+        "</svg>"
+      );
 
   }
 
 
-  profileContent.innerHTML =
 
-    avatarHTML +
+  if (viewedProfile.created_at) {
 
-    "<h2>" +
-      username +
-    "</h2>" +
+    const date =
+      new Date(
+        viewedProfile.created_at
+      );
 
-    "<div class='profile-bio'>" +
 
-      "<p>" +
-        bio +
-      "</p>" +
+    if (!isNaN(date.getTime())) {
 
-    "</div>" +
+      createdAt.textContent =
+        "compte créé le " +
+        date.toLocaleDateString(
+          "fr-FR",
+          {
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+          }
+        );
 
-    buttonsHTML;
+    }
+
+    else {
+
+      createdAt.textContent =
+        "date de création inconnue";
+
+    }
+
+  }
+
+  else {
+
+    createdAt.textContent =
+      "date de création inconnue";
+
+  }
+
+
+  const isOwnProfile =
+    currentUser &&
+    viewedProfile.id === currentUser.id;
 
 
   
 
   if (isOwnProfile) {
 
-    editBox.style.display =
-      "block";
+    messageArea.classList.add(
+      "hidden"
+    );
+
+    editArea.classList.remove(
+      "hidden"
+    );
+
 
     editUsername.value =
-      profile.username || "";
+      viewedProfile.username || "";
+
 
     editBio.value =
-      profile.bio || "";
+      viewedProfile.bio || "";
 
   }
+
+
+  
 
   else {
 
-    editBox.style.display =
-      "none";
+    editArea.classList.add(
+      "hidden"
+    );
+
+
+    messageArea.classList.remove(
+      "hidden"
+    );
+
+
+
+    messageButton.onclick =
+      function() {
+
+        const target =
+          encodeURIComponent(
+            viewedProfile.username
+          );
+
+
+        window.location.href =
+          "dm.html?to=" +
+          target;
+
+      };
 
   }
 
 }
 
 
-
-
-function openMessage(username) {
-
-  window.location.href =
-    "dm.html?to=" +
-    encodeURIComponent(username);
-
-}
 
 
 async function saveProfile() {
 
   if (!currentUser) {
 
-    saveStatus.textContent =
+    editStatus.textContent =
       "tu dois être connecté";
 
     return;
@@ -489,34 +611,30 @@ async function saveProfile() {
   }
 
 
-  const username =
+  const newUsername =
     editUsername.value.trim();
 
 
-  const bio =
+  const newBio =
     editBio.value.trim();
 
 
-  if (!username) {
+  if (!newUsername) {
 
-    saveStatus.textContent =
-      "le pseudo est obligatoire";
+    editStatus.textContent =
+      "le nom d'utilisateur est obligatoire";
 
     return;
 
   }
 
 
-  saveStatus.textContent =
+  editStatus.textContent =
     "enregistrement...";
 
 
   let avatarUrl =
-    currentProfile
-      ? currentProfile.avatar
-      : null;
-
-
+    viewedProfile.avatar || null;
 
 
   const file =
@@ -525,20 +643,13 @@ async function saveProfile() {
 
   if (file) {
 
-    if (!file.type.startsWith("image/")) {
+    if (
+      file.size >
+      5 * 1024 * 1024
+    ) {
 
-      saveStatus.textContent =
-        "le fichier doit être une image";
-
-      return;
-
-    }
-
-
-    if (file.size > 5 * 1024 * 1024) {
-
-      saveStatus.textContent =
-        "image trop grosse (maximum 5 MB)";
+      editStatus.textContent =
+        "image trop grande (5 MB maximum)";
 
       return;
 
@@ -553,43 +664,33 @@ async function saveProfile() {
 
 
     const filePath =
-
       "avatars/" +
-
       currentUser.id +
-
       "/" +
-
       Date.now() +
-
       "_" +
-
       safeName;
 
 
     const {
       error: uploadError
-    } =
-      await supabaseClient
-        .storage
-        .from("media")
-        .upload(
-          filePath,
-          file,
-          {
-            contentType: file.type,
-            cacheControl: "3600",
-            upsert: false
-          }
-        );
+    } = await supabaseClient
+      .storage
+      .from("media")
+      .upload(
+        filePath,
+        file
+      );
 
 
     if (uploadError) {
 
-      console.error(uploadError);
+      console.error(
+        uploadError
+      );
 
-      saveStatus.textContent =
-        "erreur avatar: " +
+      editStatus.textContent =
+        "erreur upload avatar : " +
         uploadError.message;
 
       return;
@@ -603,7 +704,9 @@ async function saveProfile() {
       supabaseClient
         .storage
         .from("media")
-        .getPublicUrl(filePath);
+        .getPublicUrl(
+          filePath
+        );
 
 
     avatarUrl =
@@ -613,57 +716,47 @@ async function saveProfile() {
 
 
 
-
   const {
-    data,
-    error
-  } =
-    await supabaseClient
-      .from("profiles")
-      .update({
+    error: updateError
+  } = await supabaseClient
+    .from("profiles")
+    .update({
 
-        username: username,
+      username: newUsername,
+      bio: newBio,
+      avatar: avatarUrl
 
-        bio: bio,
-
-        avatar: avatarUrl
-
-      })
-      .eq(
-        "id",
-        currentUser.id
-      )
-      .select()
-      .maybeSingle();
+    })
+    .eq(
+      "id",
+      currentUser.id
+    );
 
 
-  if (error) {
+  if (updateError) {
 
-    console.error(error);
+    console.error(
+      updateError
+    );
 
-    saveStatus.textContent =
-      "erreur: " +
-      error.message;
+    editStatus.textContent =
+      "erreur : " +
+      updateError.message;
 
     return;
 
   }
 
 
-  currentProfile =
-    data;
+ 
 
-
-  viewedProfile =
-    data;
-
-
-  await supabaseClient
+  const {
+    error: forumError
+  } = await supabaseClient
     .from("forum_posts")
     .update({
 
-      username: username,
-
+      username: newUsername,
       avatar: avatarUrl
 
     })
@@ -673,121 +766,81 @@ async function saveProfile() {
     );
 
 
-  saveStatus.textContent =
+  if (forumError) {
+
+    console.warn(
+      "Forum update error:",
+      forumError
+    );
+
+  }
+
+
+
+
+  viewedProfile.username =
+    newUsername;
+
+  viewedProfile.bio =
+    newBio;
+
+  viewedProfile.avatar =
+    avatarUrl;
+
+
+  displayProfile();
+
+
+  editStatus.textContent =
     "profil enregistré !";
 
 
-  avatarFile.value = "";
+  setTimeout(
+    function() {
 
+      editStatus.textContent = "";
 
-  renderProfile(
-    viewedProfile,
-    true
-  );
-
-
-  setTimeout(function() {
-
-    saveStatus.textContent = "";
-
-  }, 2000);
-
-}
-
-
-async function startProfile() {
-
-  await loadCurrentUser();
-
-
-  const requestedUsername =
-    getRequestedUsername();
-
-
-
-
-  if (!requestedUsername) {
-
-    if (!currentUser) {
-
-      profileContent.innerHTML =
-        "<h2>Tu n'es pas connecté</h2>" +
-
-        "<p>Connecte-toi pour voir ton profil.</p>";
-
-      return;
-
-    }
-
-
-    currentProfile =
-      await loadMyProfile();
-
-
-    viewedProfile =
-      currentProfile;
-
-
-    renderProfile(
-      viewedProfile,
-      true
-    );
-
-    return;
-
-  }
-
-
-
-
-  viewedProfile =
-    await loadProfileByUsername(
-      requestedUsername
-    );
-
-
-  if (!viewedProfile) {
-
-    profileContent.innerHTML =
-      "<h2>Profil introuvable</h2>" +
-
-      "<p>Utilisateur : " +
-
-      escapeHtml(
-        requestedUsername
-      ) +
-
-      "</p>";
-
-    return;
-
-  }
-
-
-  const isOwnProfile =
-    currentUser &&
-    viewedProfile.id === currentUser.id;
-
-
-  if (isOwnProfile) {
-
-    currentProfile =
-      viewedProfile;
-
-  }
-
-
-  renderProfile(
-    viewedProfile,
-    isOwnProfile
+    },
+    1500
   );
 
 }
 
 
-startProfile();
+
+
+function showError(message) {
+
+  loading.classList.add(
+    "hidden"
+  );
+
+  profileContent.classList.add(
+    "hidden"
+  );
+
+  error.classList.remove(
+    "hidden"
+  );
+
+  error.textContent =
+    message;
+
+}
+
+
+
+
+saveButton.onclick =
+  saveProfile;
+
+
+
+
+loadProfile();
 
 </script>
+
 
 </body>
 
