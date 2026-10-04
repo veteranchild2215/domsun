@@ -18,9 +18,10 @@
 
 <h1>DOMSUN Forum</h1>
 
+
 <div class="box">
 
-  <p>Tu peux poster sans créer de compte.</p>
+  <p id="loginInfo">chargement...</p>
 
   <input
     id="username"
@@ -54,9 +55,11 @@
 
 </div>
 
+
 <div id="chat">
   <div class="box">chargement...</div>
 </div>
+
 
 <br>
 
@@ -64,10 +67,30 @@
 <a class="nav" href="profil.html">profil</a>
 <a class="nav" href="dm.html">messages</a>
 
+
 <script>
 
-const chat = document.getElementById("chat");
-const statusText = document.getElementById("status");
+
+const chat =
+  document.getElementById("chat");
+
+const statusText =
+  document.getElementById("status");
+
+const usernameInput =
+  document.getElementById("username");
+
+const loginInfo =
+  document.getElementById("loginInfo");
+
+
+
+
+let currentUser = null;
+
+let currentProfile = null;
+
+
 
 
 function escapeHtml(text) {
@@ -90,21 +113,166 @@ function escapeHtml(text) {
 }
 
 
+
+async function loadCurrentUser() {
+
+  const {
+    data: userData,
+    error: userError
+  } = await supabaseClient.auth.getUser();
+
+
+  if (userError) {
+
+    console.error(userError);
+
+  }
+
+
+  currentUser =
+    userData && userData.user
+      ? userData.user
+      : null;
+
+
+
+
+  if (!currentUser) {
+
+    currentProfile = null;
+
+    loginInfo.textContent =
+      "Tu n'es pas connecté. Tu peux poster anonymement.";
+
+    usernameInput.disabled = false;
+
+    usernameInput.placeholder =
+      "ton pseudo";
+
+    return;
+
+  }
+
+
+
+
+  const {
+    data: profile,
+    error: profileError
+  } =
+    await supabaseClient
+      .from("profiles")
+      .select(
+        "id, username, avatar, is_admin, is_moderator"
+      )
+      .eq("id", currentUser.id)
+      .maybeSingle();
+
+
+  if (profileError) {
+
+    console.error(
+      "Profile error:",
+      profileError
+    );
+
+  }
+
+
+  currentProfile = profile || null;
+
+
+  /*
+  If profile exists
+  */
+
+  if (currentProfile) {
+
+    usernameInput.value =
+      currentProfile.username || "";
+
+    usernameInput.disabled = true;
+
+    loginInfo.textContent =
+      "connecté : " +
+      currentProfile.username;
+
+  }
+
+
+  else {
+
+    let fallbackName =
+      currentUser.user_metadata &&
+      currentUser.user_metadata.username
+        ? currentUser.user_metadata.username
+        : "user";
+
+
+    usernameInput.value =
+      fallbackName;
+
+    usernameInput.disabled = true;
+
+    loginInfo.textContent =
+      "connecté : " +
+      fallbackName;
+
+  }
+
+}
+
+
 function getUsername() {
 
-  const input =
-    document.getElementById("username");
+
+
+  if (currentUser) {
+
+    if (currentProfile &&
+        currentProfile.username) {
+
+      return currentProfile.username
+        .substring(0, 30);
+
+    }
+
+
+    if (
+      currentUser.user_metadata &&
+      currentUser.user_metadata.username
+    ) {
+
+      return currentUser.user_metadata.username
+        .substring(0, 30);
+
+    }
+
+
+    return "user";
+
+  }
+
+
+  /*
+  Anonymous
+  */
 
   let name =
-    input.value.trim();
+    usernameInput.value.trim();
+
 
   if (!name) {
+
     name = "anonymous";
+
   }
+
 
   return name.substring(0, 30);
 
 }
+
 
 
 async function sendPost() {
@@ -114,8 +282,10 @@ async function sendPost() {
       .value
       .trim();
 
+
   const username =
     getUsername();
+
 
   const imageFile =
     document.getElementById("forumImage")
@@ -132,8 +302,6 @@ async function sendPost() {
   }
 
 
-  /* Check image */
-
   if (imageFile) {
 
     if (!imageFile.type.startsWith("image/")) {
@@ -146,7 +314,7 @@ async function sendPost() {
     }
 
 
-    if (imageFile.size > 15 * 1024 * 1024) {
+    if (imageFile.size > 10 * 1024 * 1024) {
 
       statusText.textContent =
         "image trop grosse (maximum 10 MB)";
@@ -158,10 +326,12 @@ async function sendPost() {
   }
 
 
-  statusText.textContent = "envoi...";
+  statusText.textContent =
+    "envoi...";
 
 
   let imageUrl = null;
+
 
 
   if (imageFile) {
@@ -173,8 +343,16 @@ async function sendPost() {
       );
 
 
+    const folder =
+      currentUser
+        ? currentUser.id
+        : "anonymous";
+
+
     const filePath =
-      "forum/anonymous/" +
+      "forum/" +
+      folder +
+      "/" +
       Date.now() +
       "_" +
       Math.random()
@@ -228,6 +406,20 @@ async function sendPost() {
 
   }
 
+  const avatar =
+    currentProfile &&
+    currentProfile.avatar
+      ? currentProfile.avatar
+      : null;
+
+
+
+  const userId =
+    currentUser
+      ? currentUser.id
+      : null;
+
+
 
   const {
     error: dbError
@@ -236,11 +428,11 @@ async function sendPost() {
       .from("forum_posts")
       .insert({
 
-        user_id: null,
+        user_id: userId,
 
         username: username,
 
-        avatar: null,
+        avatar: avatar,
 
         content: message || "",
 
@@ -262,17 +454,16 @@ async function sendPost() {
   }
 
 
-  /* Clear inputs */
 
-  document.getElementById("msg").value = "";
+  document.getElementById("msg")
+    .value = "";
 
-  document.getElementById("forumImage").value = "";
+  document.getElementById("forumImage")
+    .value = "";
 
 
   statusText.textContent =
     "message envoyé !";
-
-
 
 
   await loadPosts();
@@ -287,12 +478,66 @@ async function sendPost() {
 }
 
 
+async function deletePost(postId) {
+
+  if (!confirm("Supprimer ce message ?")) {
+
+    return;
+
+  }
+
+
+  statusText.textContent =
+    "suppression...";
+
+
+  const {
+    error
+  } =
+    await supabaseClient
+      .from("forum_posts")
+      .delete()
+      .eq("id", postId);
+
+
+  if (error) {
+
+    console.error(error);
+
+    statusText.textContent =
+      "erreur suppression: " +
+      error.message;
+
+    return;
+
+  }
+
+
+  statusText.textContent =
+    "message supprimé !";
+
+
+  await loadPosts();
+
+
+  setTimeout(function() {
+
+    statusText.textContent = "";
+
+  }, 1500);
+
+}
+
+
+
 function render(posts) {
 
   if (!posts || posts.length === 0) {
 
     chat.innerHTML =
-      "<div class='box'>pas de messages</div>";
+      "<div class='box'>" +
+      "pas de messages" +
+      "</div>";
 
     return;
 
@@ -314,18 +559,104 @@ function render(posts) {
         );
 
 
+      let avatarHTML = "";
+
+
+      /*
+      Avatar
+      */
+
+      if (post.avatar) {
+
+        avatarHTML =
+
+          "<img " +
+
+          "src=\"" +
+          escapeHtml(post.avatar) +
+          "\" " +
+
+          "alt=\"avatar\" " +
+
+          "style=\"" +
+          "width:50px;" +
+          "height:50px;" +
+          "object-fit:cover;" +
+          "vertical-align:middle;" +
+          "margin-right:10px;" +
+          "border-radius:0;" +
+          "\">";
+
+      }
+
+
+      /*
+      Delete button
+      */
+
+      let deleteHTML = "";
+
+
+      const isOwner =
+        currentUser &&
+        post.user_id &&
+        post.user_id === currentUser.id;
+
+
+      const isAdmin =
+        currentProfile &&
+        currentProfile.is_admin === true;
+
+
+      const isModerator =
+        currentProfile &&
+        currentProfile.is_moderator === true;
+
+
+      if (
+        isOwner ||
+        isAdmin ||
+        isModerator
+      ) {
+
+        deleteHTML =
+
+          "<br><br>" +
+
+          "<button " +
+
+          "onclick=\"deletePost(" +
+          post.id +
+          ")\">" +
+
+          "supprimer" +
+
+          "</button>";
+
+      }
+
+
+      /*
+      Image
+      */
+
       let imageHTML = "";
 
 
       if (post.image_url) {
 
         imageHTML =
+
           "<br>" +
+
           "<img " +
+
           "src=\"" +
           escapeHtml(post.image_url) +
           "\" " +
+
           "alt=\"image du forum\" " +
+
           "style=\"" +
           "max-width:500px;" +
           "max-height:500px;" +
@@ -337,21 +668,59 @@ function render(posts) {
       }
 
 
+      /*
+      Date
+      */
+
+      let dateHTML = "";
+
+
+      if (post.created_at) {
+
+        const date =
+          new Date(post.created_at);
+
+
+        dateHTML =
+
+          "<small>" +
+
+          escapeHtml(
+            date.toLocaleString("fr-FR")
+          ) +
+
+          "</small>";
+
+      }
+
+
       return (
 
         "<div class='box'>" +
 
-          "<p>" +
-            "<b>" +
-              username +
-            "</b>" +
-          "</p>" +
+          "<div>" +
 
-          "<p>" +
+            avatarHTML +
+
+            "<b>" +
+            username +
+            "</b>" +
+
+          "</div>" +
+
+          "<br>" +
+
+          "<div>" +
             content +
-          "</p>" +
+          "</div>" +
 
           imageHTML +
+
+          "<br>" +
+
+          dateHTML +
+
+          deleteHTML +
 
         "</div>"
 
@@ -362,10 +731,13 @@ function render(posts) {
 }
 
 
+
 async function loadPosts() {
 
   chat.innerHTML =
-    "<div class='box'>chargement...</div>";
+    "<div class='box'>" +
+    "chargement..." +
+    "</div>";
 
 
   const {
@@ -375,7 +747,7 @@ async function loadPosts() {
     await supabaseClient
       .from("forum_posts")
       .select(
-        "id, username, avatar, content, image_url, created_at"
+        "id, user_id, username, avatar, content, image_url, created_at"
       )
       .order(
         "created_at",
@@ -394,6 +766,7 @@ async function loadPosts() {
 
 
     chat.innerHTML =
+
       "<div class='box'>" +
 
         "<b>Erreur Supabase</b>" +
@@ -434,7 +807,18 @@ document
     }
   );
 
-loadPosts();
+
+
+async function startForum() {
+
+  await loadCurrentUser();
+
+  await loadPosts();
+
+}
+
+
+startForum();
 
 </script>
 
