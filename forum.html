@@ -1,7 +1,10 @@
 <!doctype html>
 <html lang="fr">
+
 <head>
+
 <meta charset="utf-8">
+
 <title>DOMSUN Forum</title>
 
 <link rel="stylesheet" href="style.css">
@@ -9,436 +12,483 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-config.js"></script>
 <script src="theme.js"></script>
+
 </head>
+
 
 <body>
 
 <h1>DOMSUN Forum</h1>
 
+
 <div class="box">
-    <h2>Nouveau message</h2>
 
-    <textarea
-        id="content"
-        placeholder="écris ton message..."
-        style="width:90%;min-height:80px;"
-    ></textarea>
+  <p>
+    Tu peux poster sans créer de compte.
+  </p>
 
-    <br>
+  <input
+    id="username"
+    type="text"
+    maxlength="30"
+    placeholder="ton pseudo"
+  >
 
-    <input
-        type="file"
-        id="forumImage"
-        accept="image/*"
-    >
+  <br><br>
 
-    <br>
+  <textarea
+    id="msg"
+    maxlength="2000"
+    placeholder="écris ton message..."
+    style="width:80%;height:100px;"
+  ></textarea>
 
-    <button onclick="sendPost()">envoyer</button>
+  <br><br>
 
-    <p id="status"></p>
+  <input
+    id="forumImage"
+    type="file"
+    accept="image/*"
+  >
+
+  <br><br>
+
+  <button onclick="sendPost()">
+    envoyer
+  </button>
+
+  <p id="status"></p>
+
 </div>
 
-<div id="forum">
-    <div class="box">chargement...</div>
+
+<div id="chat">
+
+  <div class="box">
+    chargement...
+  </div>
+
 </div>
+
 
 <br>
 
-<a class="nav" href="index.html">accueil</a>
-<a class="nav" href="profil.html">profil</a>
-<a class="nav" href="dm.html">messages</a>
+
+<a class="nav" href="index.html">
+accueil
+</a>
+
+<a class="nav" href="profil.html">
+profil
+</a>
+
+<a class="nav" href="dm.html">
+messages
+</a>
+
 
 <script>
 
-const forum = document.getElementById("forum");
-const statusText = document.getElementById("status");
+
+
+
+const chat =
+  document.getElementById("chat");
+
+const statusText =
+  document.getElementById("status");
+
+
+
 
 function escapeHtml(text) {
-    return String(text || "").replace(/[&<>"']/g, function(c) {
-        return {
-            "&": "&amp;",
-            "<": "&lt;",
-            ">": "&gt;",
-            '"': "&quot;",
-            "'": "&#039;"
-        }[c];
-    });
-}
 
+  return String(text || "").replace(
+    /[&<>"']/g,
+    function(c) {
 
-async function getCurrentUser() {
+      return {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      }[c];
 
-    const { data, error } =
-        await supabaseClient.auth.getUser();
-
-    if (error) {
-        console.error(error);
-        return null;
     }
+  );
 
-    return data.user;
 }
+
+
+
+function getUsername() {
+
+  const input =
+    document.getElementById("username");
+
+  let name =
+    input.value.trim();
+
+
+  if (!name) {
+
+    name = "anonymous";
+
+  }
+
+
+  return name.substring(0, 30);
+
+}
+
+
 
 
 async function sendPost() {
 
-    const user = await getCurrentUser();
-
-    if (!user) {
-        statusText.textContent =
-            "tu dois être connecté pour poster";
-        return;
-    }
-
-    const content =
-        document.getElementById("content")
-        .value
-        .trim();
-
-    const imageFile =
-        document.getElementById("forumImage")
-        .files[0];
-
-    if (!content && !imageFile) {
-        statusText.textContent =
-            "écris quelque chose ou choisis une image";
-        return;
-    }
-
-    statusText.textContent = "envoi...";
+  const message =
+    document.getElementById("msg")
+      .value
+      .trim();
 
 
+  const username =
+    getUsername();
 
 
-    const { data: profile, error: profileError } =
-        await supabaseClient
-            .from("profiles")
-            .select("username, avatar")
-            .eq("id", user.id)
-            .single();
-
-    if (profileError) {
-
-        statusText.textContent =
-            "erreur profil: " + profileError.message;
-
-        return;
-    }
+  const imageFile =
+    document.getElementById("forumImage")
+      .files[0];
 
 
- 
-
-    let imageUrl = null;
-
-    if (imageFile) {
-
-        if (imageFile.size > 5 * 1024 * 1024) {
-
-            statusText.textContent =
-                "image trop grande (maximum 5 MB)";
-
-            return;
-        }
-
-        if (!imageFile.type.startsWith("image/")) {
-
-            statusText.textContent =
-                "fichier non valide";
-
-            return;
-        }
-
-        const safeName =
-            imageFile.name
-                .replace(/[^a-zA-Z0-9._-]/g, "_");
-
-        const filePath =
-            "forum/" +
-            user.id +
-            "/" +
-            Date.now() +
-            "_" +
-            safeName;
-
-
-        const { error: uploadError } =
-            await supabaseClient
-                .storage
-                .from("media")
-                .upload(
-                    filePath,
-                    imageFile,
-                    {
-                        contentType: imageFile.type,
-                        upsert: false
-                    }
-                );
-
-
-        if (uploadError) {
-
-            statusText.textContent =
-                "erreur upload image: " +
-                uploadError.message;
-
-            return;
-        }
-
-
-        const { data: publicData } =
-            supabaseClient
-                .storage
-                .from("media")
-                .getPublicUrl(filePath);
-
-        imageUrl =
-            publicData.publicUrl;
-    }
-
-
-  
-
-    const { error } =
-        await supabaseClient
-            .from("forum_posts")
-            .insert({
-
-                user_id: user.id,
-
-                username:
-                    profile.username,
-
-                avatar:
-                    profile.avatar || null,
-
-                content:
-                    content || "",
-
-                image_url:
-                    imageUrl
-
-            });
-
-
-    if (error) {
-
-        statusText.textContent =
-            "erreur: " + error.message;
-
-        return;
-    }
-
-
-    document.getElementById("content").value = "";
-    document.getElementById("forumImage").value = "";
+  if (!message && !imageFile) {
 
     statusText.textContent =
-        "message envoyé !";
+      "écris un message ou choisis une image";
 
-    loadForum();
+    return;
+
+  }
+
+
+
+  if (imageFile) {
+
+    if (!imageFile.type.startsWith("image/")) {
+
+      statusText.textContent =
+        "le fichier doit être une image";
+
+      return;
+
+    }
+
+
+    if (imageFile.size > 10 * 1024 * 1024) {
+
+      statusText.textContent =
+        "image trop grosse (maximum 10 MB)";
+
+      return;
+
+    }
+
+  }
+
+
+  statusText.textContent =
+    "envoi...";
+
+
+  let imageUrl = null;
+
+
+
+
+  if (imageFile) {
+
+    const safeName =
+      imageFile.name.replace(
+        /[^a-zA-Z0-9._-]/g,
+        "_"
+      );
+
+
+    const filePath =
+      "forum/anonymous/" +
+      Date.now() +
+      "_" +
+      Math.random()
+        .toString(36)
+        .substring(2, 10) +
+      "_" +
+      safeName;
+
+
+    const {
+      error: uploadError
+    } = await supabaseClient
+      .storage
+      .from("media")
+      .upload(
+        filePath,
+        imageFile,
+        {
+          contentType: imageFile.type,
+          cacheControl: "3600",
+          upsert: false
+        }
+      );
+
+
+    if (uploadError) {
+
+      console.error(uploadError);
+
+      statusText.textContent =
+        "erreur image: " +
+        uploadError.message;
+
+      return;
+
+    }
+
+
+    const {
+      data: publicData
+    } = supabaseClient
+      .storage
+      .from("media")
+      .getPublicUrl(filePath);
+
+
+    imageUrl =
+      publicData.publicUrl;
+
+  }
+
+
+
+
+  const {
+    error: dbError
+  } = await supabaseClient
+    .from("forum_posts")
+    .insert({
+
+      user_id: null,
+
+      username: username,
+
+      avatar: null,
+
+      content: message || "",
+
+      image_url: imageUrl
+
+    });
+
+
+  if (dbError) {
+
+    console.error(dbError);
+
+    statusText.textContent =
+      "erreur message: " +
+      dbError.message;
+
+    return;
+
+  }
+
+
+
+  document.getElementById("msg")
+    .value = "";
+
+  document.getElementById("forumImage")
+    .value = "";
+
+
+  statusText.textContent =
+    "message envoyé !";
+
+
+  await loadPosts();
+
+
+  setTimeout(function() {
+
+    statusText.textContent = "";
+
+  }, 1500);
+
 }
 
 
-async function deletePost(id) {
 
-    if (!confirm("supprimer ce message ?")) {
-        return;
-    }
+function render(posts) {
 
-    const { error } =
-        await supabaseClient
-            .from("forum_posts")
-            .delete()
-            .eq("id", id);
+  if (!posts || posts.length === 0) {
 
-    if (error) {
+    chat.innerHTML =
+      "<div class='box'>pas de messages</div>";
 
-        alert(
-            "erreur suppression: " +
-            error.message
+    return;
+
+  }
+
+
+  chat.innerHTML =
+    posts.map(function(post) {
+
+      const username =
+        escapeHtml(
+          post.username || "anonymous"
         );
 
-        return;
-    }
 
-    loadForum();
+      const content =
+        escapeHtml(
+          post.content || ""
+        );
+
+
+      let imageHTML = "";
+
+
+      if (post.image_url) {
+
+        imageHTML = `
+          <br>
+          <img
+            src="${escapeHtml(post.image_url)}"
+            alt="image du forum"
+            style="
+              max-width:500px;
+              max-height:500px;
+              width:auto;
+              height:auto;
+              margin-top:10px;
+            "
+          >
+        `;
+
+      }
+
+
+      return `
+
+        <div class="box">
+
+          <p>
+
+            <b>
+              ${username}
+            </b>
+
+          </p>
+
+          <p>
+            ${content}
+          </p>
+
+          ${imageHTML}
+
+        </div>
+
+      `;
+
+    }).join("");
+
 }
 
 
-async function loadForum() {
-
-    forum.innerHTML =
-        '<div class="box">chargement...</div>';
 
 
-    const { data: posts, error } =
-        await supabaseClient
-            .from("forum_posts")
-            .select("*")
-            .order("created_at", {
-                ascending: false
-            });
+async function loadPosts() {
+
+  chat.innerHTML =
+    "<div class='box'>chargement...</div>";
 
 
-    if (error) {
+  const {
+    data,
+    error
+  } = await supabaseClient
 
-        forum.innerHTML =
-            '<div class="box">Erreur loading forum: ' +
-            escapeHtml(error.message) +
-            '</div>';
+    .from("forum_posts")
 
-        return;
-    }
+    .select(
+      "id, username, avatar, content, image_url, created_at"
+    )
 
-
-    const { data: userData } =
-        await supabaseClient.auth.getUser();
-
-    const user =
-        userData.user;
-
-
-    let myProfile = null;
-
-    if (user) {
-
-        const { data } =
-            await supabaseClient
-                .from("profiles")
-                .select("is_admin,is_moderator")
-                .eq("id", user.id)
-                .single();
-
-        myProfile = data;
-    }
+    .order(
+      "created_at",
+      {
+        ascending: true
+      }
+    );
 
 
-    if (!posts || posts.length === 0) {
+  if (error) {
 
-        forum.innerHTML =
-            '<div class="box">aucun message</div>';
+    console.error(error);
 
-        return;
-    }
+    chat.innerHTML = `
 
+      <div class="box">
 
-    forum.innerHTML =
-        posts.map(function(post) {
+        <b>Erreur Supabase</b>
 
-            let date = "";
+        <br><br>
 
-            if (post.created_at) {
+        ${escapeHtml(error.message)}
 
-                date =
-                    new Date(
-                        post.created_at
-                    ).toLocaleString("fr-FR");
-            }
+      </div>
 
+    `;
 
-            let avatar = "";
+    return;
 
-            if (post.avatar) {
-
-                avatar =
-                    `<img
-                        src="${escapeHtml(post.avatar)}"
-                        style="
-                            width:50px;
-                            height:50px;
-                            object-fit:cover;
-                            border:1px solid #555;
-                            border-radius:0;
-                            display:block;
-                            margin-bottom:5px;
-                        "
-                    >`;
-            }
+  }
 
 
-            let image = "";
+  render(data);
 
-            if (post.image_url) {
-
-                image =
-                    `<br>
-                    <img
-                        src="${escapeHtml(post.image_url)}"
-                        style="
-                            max-width:500px;
-                            max-height:500px;
-                            object-fit:contain;
-                            border:1px solid #777;
-                            border-radius:0;
-                            margin-top:8px;
-                        "
-                    >`;
-            }
-
-
-            let deleteButton = "";
-
-            if (
-                myProfile &&
-                (
-                    myProfile.is_admin ||
-                    myProfile.is_moderator
-                )
-            ) {
-
-                deleteButton =
-                    `<br>
-                    <button
-                        onclick="deletePost(${post.id})"
-                    >
-                        supprimer
-                    </button>`;
-            }
-
-
-            let usernameHtml =
-                escapeHtml(post.username);
-
-
-            if (post.user_id) {
-
-                usernameHtml =
-                    `<a href="user.html?id=${encodeURIComponent(post.user_id)}">
-                        ${escapeHtml(post.username)}
-                    </a>`;
-            }
-
-
-            return `
-                <div class="box">
-
-                    ${avatar}
-
-                    <b>${usernameHtml}</b>
-
-                    <small>
-                        — ${escapeHtml(date)}
-                    </small>
-
-                    <p>
-                        ${escapeHtml(post.content)}
-                    </p>
-
-                    ${image}
-
-                    ${deleteButton}
-
-                </div>
-            `;
-
-        }).join("");
 }
 
 
-loadForum();
+
+document
+  .getElementById("msg")
+  .addEventListener(
+    "keydown",
+    function(event) {
+
+      if (
+        event.key === "Enter" &&
+        !event.shiftKey
+      ) {
+
+        event.preventDefault();
+
+        sendPost();
+
+      }
+
+    }
+  );
+
+
+
+
+loadPosts();
 
 </script>
 
+
 </body>
+
 </html>
