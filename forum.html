@@ -2,7 +2,6 @@
 <html lang="fr">
 
 <head>
-
 <meta charset="utf-8">
 
 <title>DOMSUN Forum</title>
@@ -63,28 +62,19 @@
 
 
 <div id="chat">
-
   <div class="box">
     chargement...
   </div>
-
 </div>
 
 
 <br>
 
+<a class="nav" href="index.html">accueil</a>
 
-<a class="nav" href="index.html">
-accueil
-</a>
+<a class="nav" href="profil.html">profil</a>
 
-<a class="nav" href="profil.html">
-profil
-</a>
-
-<a class="nav" href="dm.html">
-messages
-</a>
+<a class="nav" href="dm.html">messages</a>
 
 
 <script>
@@ -92,11 +82,10 @@ messages
 
 
 
-const chat =
-  document.getElementById("chat");
 
-const statusText =
-  document.getElementById("status");
+const chat = document.getElementById("chat");
+
+const statusText = document.getElementById("status");
 
 
 
@@ -105,20 +94,25 @@ function escapeHtml(text) {
 
   return String(text || "").replace(
     /[&<>"']/g,
+
     function(c) {
 
       return {
+
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
         '"': "&quot;",
         "'": "&#039;"
+
       }[c];
 
     }
+
   );
 
 }
+
 
 
 
@@ -130,13 +124,11 @@ function getUsername() {
   let name =
     input.value.trim();
 
-
   if (!name) {
 
     name = "anonymous";
 
   }
-
 
   return name.substring(0, 30);
 
@@ -152,15 +144,17 @@ async function sendPost() {
       .value
       .trim();
 
-
   const username =
     getUsername();
-
 
   const imageFile =
     document.getElementById("forumImage")
       .files[0];
 
+
+  /*
+  Nothing to send
+  */
 
   if (!message && !imageFile) {
 
@@ -228,23 +222,27 @@ async function sendPost() {
 
     const {
       error: uploadError
-    } = await supabaseClient
-      .storage
-      .from("media")
-      .upload(
-        filePath,
-        imageFile,
-        {
-          contentType: imageFile.type,
-          cacheControl: "3600",
-          upsert: false
-        }
-      );
+    } =
+      await supabaseClient
+        .storage
+        .from("media")
+        .upload(
+          filePath,
+          imageFile,
+          {
+            contentType: imageFile.type,
+            cacheControl: "3600",
+            upsert: false
+          }
+        );
 
 
     if (uploadError) {
 
-      console.error(uploadError);
+      console.error(
+        "Image upload error:",
+        uploadError
+      );
 
       statusText.textContent =
         "erreur image: " +
@@ -255,12 +253,15 @@ async function sendPost() {
     }
 
 
+    
+
     const {
       data: publicData
-    } = supabaseClient
-      .storage
-      .from("media")
-      .getPublicUrl(filePath);
+    } =
+      supabaseClient
+        .storage
+        .from("media")
+        .getPublicUrl(filePath);
 
 
     imageUrl =
@@ -273,26 +274,30 @@ async function sendPost() {
 
   const {
     error: dbError
-  } = await supabaseClient
-    .from("forum_posts")
-    .insert({
+  } =
+    await supabaseClient
+      .from("forum_posts")
+      .insert({
 
-      user_id: null,
+        user_id: null,
 
-      username: username,
+        username: username,
 
-      avatar: null,
+        avatar: null,
 
-      content: message || "",
+        content: message || "",
 
-      image_url: imageUrl
+        image_url: imageUrl
 
-    });
+      });
 
 
   if (dbError) {
 
-    console.error(dbError);
+    console.error(
+      "Database error:",
+      dbError
+    );
 
     statusText.textContent =
       "erreur message: " +
@@ -303,6 +308,9 @@ async function sendPost() {
   }
 
 
+  /*
+  Clear inputs
+  */
 
   document.getElementById("msg")
     .value = "";
@@ -313,6 +321,7 @@ async function sendPost() {
 
   statusText.textContent =
     "message envoyé !";
+
 
 
   await loadPosts();
@@ -333,19 +342,22 @@ function render(posts) {
   if (!posts || posts.length === 0) {
 
     chat.innerHTML =
-      "<div class='box'>pas de messages</div>";
+      "<div class='box'>" +
+      "pas de messages" +
+      "</div>";
 
     return;
 
   }
 
 
-  chat.innerHTML =
-    posts.map(function(post) {
+  chat.innerHTML = posts.map(
+    function(post) {
 
       const username =
         escapeHtml(
-          post.username || "anonymous"
+          post.username ||
+          "anonymous"
         );
 
 
@@ -358,49 +370,52 @@ function render(posts) {
       let imageHTML = "";
 
 
+      /*
+      Display image
+      */
+
       if (post.image_url) {
 
-        imageHTML = `
-          <br>
-          <img
-            src="${escapeHtml(post.image_url)}"
-            alt="image du forum"
-            style="
-              max-width:500px;
-              max-height:500px;
-              width:auto;
-              height:auto;
-              margin-top:10px;
-            "
-          >
-        `;
+        imageHTML =
+          "<br>" +
+          "<img " +
+          "src=\"" +
+          escapeHtml(post.image_url) +
+          "\" " +
+          "alt=\"image du forum\" " +
+          "style=\"" +
+          "max-width:500px;" +
+          "max-height:500px;" +
+          "width:auto;" +
+          "height:auto;" +
+          "margin-top:10px;" +
+          "\">";
 
       }
 
 
-      return `
+      return (
 
-        <div class="box">
+        "<div class='box'>" +
 
-          <p>
+          "<p>" +
+            "<b>" +
+              username +
+            "</b>" +
+          "</p>" +
 
-            <b>
-              ${username}
-            </b>
+          "<p>" +
+            content +
+          "</p>" +
 
-          </p>
+          imageHTML +
 
-          <p>
-            ${content}
-          </p>
+        "</div>"
 
-          ${imageHTML}
+      );
 
-        </div>
-
-      `;
-
-    }).join("");
+    }
+  ).join("");
 
 }
 
@@ -410,45 +425,48 @@ function render(posts) {
 async function loadPosts() {
 
   chat.innerHTML =
-    "<div class='box'>chargement...</div>";
+    "<div class='box'>" +
+    "chargement..." +
+    "</div>";
 
 
   const {
     data,
     error
-  } = await supabaseClient
-
-    .from("forum_posts")
-
-    .select(
-      "id, username, avatar, content, image_url, created_at"
-    )
-
-    .order(
-      "created_at",
-      {
-        ascending: true
-      }
-    );
+  } =
+    await supabaseClient
+      .from("forum_posts")
+      .select(
+        "id, username, avatar, content, image_url, created_at"
+      )
+      .order(
+        "created_at",
+        {
+          ascending: true
+        }
+      );
 
 
   if (error) {
 
-    console.error(error);
+    console.error(
+      "Forum loading error:",
+      error
+    );
 
-    chat.innerHTML = `
 
-      <div class="box">
+    chat.innerHTML =
+      "<div class='box'>" +
 
-        <b>Erreur Supabase</b>
+        "<b>Erreur Supabase</b>" +
 
-        <br><br>
+        "<br><br>" +
 
-        ${escapeHtml(error.message)}
+        escapeHtml(
+          error.message
+        ) +
 
-      </div>
-
-    `;
+      "</div>";
 
     return;
 
@@ -458,6 +476,7 @@ async function loadPosts() {
   render(data);
 
 }
+
 
 
 
@@ -483,11 +502,10 @@ document
 
 
 
-
 loadPosts();
 
-</script>
 
+</script>
 
 </body>
 
