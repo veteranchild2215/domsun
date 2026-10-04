@@ -549,7 +549,7 @@ function render(posts) {
 
       const username =
         escapeHtml(
-          post.username || "anonymous"
+          post.username || "anonymousmous"
         );
 
 
@@ -694,37 +694,43 @@ function render(posts) {
       }
 
 
-      return (
+return (
 
-        "<div class='box'>" +
+  "<div class='box'>" +
 
-          "<div>" +
+    "<div>" +
 
-            avatarHTML +
+      avatarHTML +
 
-            "<b>" +
-            username +
-            "</b>" +
+      "<a href=\"profil.html?user=" +
+      encodeURIComponent(post.username) +
+      "\">" +
 
-          "</div>" +
+      "<b>" +
+      username +
+      "</b>" +
 
-          "<br>" +
+      "</a>" +
 
-          "<div>" +
-            content +
-          "</div>" +
+    "</div>" +
 
-          imageHTML +
+    "<br>" +
 
-          "<br>" +
+    "<div>" +
+      content +
+    "</div>" +
 
-          dateHTML +
+    imageHTML +
 
-          deleteHTML +
+    "<br>" +
 
-        "</div>"
+    dateHTML +
 
-      );
+    deleteHTML +
+
+  "</div>"
+
+);
 
     }).join("");
 
