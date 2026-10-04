@@ -1,20 +1,108 @@
 <!doctype html>
+
 <html lang="fr">
-<head><meta charset="utf-8"><title>themes domsun06</title>
-<link rel="stylesheet" href="style.css"></head>
+
+<head>
+
+<meta charset="utf-8">
+
+<title>DOMSUN Themes</title>
+
+<link rel="stylesheet" href="style.css">
+
+</head>
+
+
 <body>
-<h1>domsun themes</h1>
+
+<h1>DOMSUN THEMES</h1>
+
+
 <div class="box">
-<h2>choisi ton theme XP</h2>
-<p>clik sur un bouton. le theme reste apré refresh.</p>
-<button onclick="setTheme('mono.css')">...</button>
-<button onclick="setTheme('xp_bleu.css')">Bleu</button>
-<button onclick="setTheme('xp_vert.css')">Vert</button>
-<button onclick="setTheme('xp_rose.css')">Rose</button>
-<button onclick="setTheme('xp_gris.css')">Gris</button>
-<button onclick="setTheme('xp_noir.css')">Dark</button>
+
+<h2>choisi ton theme</h2>
+
+<p>
+Clique sur un bouton pour changer le theme.
+</p>
+
+
+<button onclick="changeTheme('xp_bleu.css')">
+Bleu
+</button>
+
+
+<button onclick="changeTheme('xp_vert.css')">
+Vert
+</button>
+
+
+<button onclick="changeTheme('xp_rose.css')">
+Rose
+</button>
+
+
+<button onclick="changeTheme('xp_gris.css')">
+Gris
+</button>
+
+
+<button onclick="changeTheme('xp_noir.css')">
+Dark
+</button>
+
+
+<button onclick="changeTheme('mono.css')">
+Mono
+</button>
+
 </div>
-<div class="box"><h2>preview</h2><p>le theme choisi reste dans ton navigateur </p>
-<a class="nav" href="index.html">⬅ retour accueil</a></div>
+
+
+<div class="box">
+
+<h2>Theme actuel</h2>
+
+<p id="currentTheme">
+aucun
+</p>
+
+</div>
+
+
+<a class="nav" href="index.html">
+retour accueil
+</a>
+
+
 <script src="theme.js"></script>
-</body></html>
+
+
+<script>
+
+function changeTheme(theme) {
+
+  setTheme(theme);
+
+  document.getElementById("currentTheme")
+    .textContent = theme;
+
+}
+
+
+const saved =
+  localStorage.getItem("domsunTheme");
+
+if (saved) {
+
+  document.getElementById("currentTheme")
+    .textContent = saved;
+
+}
+
+</script>
+
+
+</body>
+
+</html>
