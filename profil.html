@@ -3,7 +3,8 @@
 
 <head>
 <meta charset="utf-8">
-<title>profil - DOMSUN</title>
+
+<title>DOMSUN Profil</title>
 
 <link rel="stylesheet" href="style.css">
 
@@ -12,114 +13,197 @@
 <script src="theme.js"></script>
 
 <style>
-.avatar {
-  width: 120px;
-  height: 120px;
+
+.profile-page {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 30px 0;
+}
+
+.profile-card {
+  width: min(600px, 90%);
+  text-align: center;
+}
+
+.profile-avatar {
+  width: 150px;
+  height: 150px;
   object-fit: cover;
   border-radius: 0;
   display: block;
-  margin-top: 10px;
+  margin: 15px auto;
 }
 
-.friend {
-  padding: 8px;
-  margin: 5px 0;
-  border: 1px solid #888;
+.profile-bio {
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.error {
-  color: red;
-  font-weight: bold;
+.profile-actions {
+  margin-top: 20px;
 }
+
+.profile-actions button {
+  margin: 5px;
+}
+
 </style>
 
 </head>
 
+
 <body>
 
-<h1>mon profil</h1>
-
-<div class="box">
-
-  <p id="status">chargement du profil...</p>
-
-  <p>photo profil:</p>
-
-  <input
-    type="file"
-    id="img"
-    accept="image/*"
-  >
-
-  <br><br>
-
-  <p>pseudo:</p>
-
-  <input
-    id="pseudo"
-    placeholder="ton pseudo"
-  >
-
-  <br><br>
-
-  <p>bio:</p>
-
-  <textarea
-    id="bio"
-    placeholder="je sui domsun tro for"
-  ></textarea>
-
-  <br><br>
-
-  <button onclick="saveProfile()">
-    sauver profil
-  </button>
-
-  <h2>preview</h2>
-
-  <img
-    id="preview"
-    class="avatar"
-    style="display:none;"
-  >
-
-  <p id="showpseudo"></p>
-  <p id="showbio"></p>
-
-</div>
+<h1>DOMSUN Profil</h1>
 
 
-<div class="box">
+<div class="profile-page">
 
-  <h2>amis</h2>
+  <div class="profile-card">
 
-  <input
-    id="friendname"
-    placeholder="pseudo ami"
-  >
 
-  <button onclick="addFriend()">
-    ajouter
-  </button>
+    <div class="box">
 
-  <div id="friends">
-    chargement...
+      <div id="profileContent">
+        chargement...
+      </div>
+
+    </div>
+
+
+    <br>
+
+
+    <div
+      class="box"
+      id="editBox"
+      style="display:none;"
+    >
+
+      <h2>Modifier mon profil</h2>
+
+
+      <label>
+        pseudo
+      </label>
+
+      <br>
+
+      <input
+        id="editUsername"
+        type="text"
+        maxlength="30"
+      >
+
+
+      <br><br>
+
+
+      <label>
+        bio
+      </label>
+
+      <br>
+
+      <textarea
+        id="editBio"
+        maxlength="500"
+        style="width:90%;height:100px;"
+      ></textarea>
+
+
+      <br><br>
+
+
+      <label>
+        avatar
+      </label>
+
+      <br>
+
+      <input
+        id="avatarFile"
+        type="file"
+        accept="image/*"
+      >
+
+
+      <br><br>
+
+
+      <button onclick="saveProfile()">
+        enregistrer
+      </button>
+
+
+      <p id="saveStatus"></p>
+
+    </div>
+
+
+    <br>
+
+
+    <div class="profile-actions">
+
+      <a
+        class="nav"
+        href="index.html"
+      >
+        accueil
+      </a>
+
+
+      <a
+        class="nav"
+        href="forum.html"
+      >
+        forum
+      </a>
+
+
+      <a
+        class="nav"
+        href="dm.html"
+      >
+        messages
+      </a>
+
+    </div>
+
   </div>
 
 </div>
 
 
-<a class="nav" href="index.html">accueil</a>
-
-<a class="nav" href="forum.html">forum</a>
-
-<a class="nav" href="dm.html">messages</a>
-
-
 <script>
 
-const statusText =
-  document.getElementById("status");
+
+const profileContent =
+  document.getElementById("profileContent");
+
+const editBox =
+  document.getElementById("editBox");
+
+const editUsername =
+  document.getElementById("editUsername");
+
+const editBio =
+  document.getElementById("editBio");
+
+const avatarFile =
+  document.getElementById("avatarFile");
+
+const saveStatus =
+  document.getElementById("saveStatus");
+
+
+let currentUser = null;
+
+let currentProfile = null;
+
+let viewedProfile = null;
 
 
 
@@ -144,142 +228,239 @@ function escapeHtml(text) {
 
 
 
-async function loadProfile() {
+function getRequestedUsername() {
 
-  statusText.textContent =
-    "chargement du profil...";
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
 
-  const {
-    data: userData,
-    error: userError
-  } = await supabaseClient.auth.getUser();
+  return params.get("user");
 
-
-  if (userError || !userData.user) {
-
-    statusText.textContent =
-      "tu dois être connecté pour voir ton profil";
-
-    return;
-  }
+}
 
 
-  const user = userData.user;
-
-
-  
+async function loadCurrentUser() {
 
   const {
-    data: profile,
-    error: profileError
-  } = await supabaseClient
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
+    data,
+    error
+  } =
+    await supabaseClient.auth.getUser();
 
 
-  if (profileError) {
+  if (error) {
 
-    console.error(profileError);
+    console.error(error);
 
-    statusText.textContent =
-      "erreur profil: " +
-      profileError.message;
-
-    return;
   }
 
 
-
-
-  if (!profile) {
-
-    const username =
-      user.user_metadata?.username ||
-      user.email?.split("@")[0] ||
-      "user";
-
-
-    const {
-      data: newProfile,
-      error: createError
-    } = await supabaseClient
-      .from("profiles")
-      .insert({
-
-        id: user.id,
-
-        username: username
-
-      })
-      .select()
-      .maybeSingle();
-
-
-    if (createError) {
-
-      console.error(createError);
-
-      statusText.textContent =
-        "profil manquant et impossible à créer: " +
-        createError.message;
-
-      return;
-    }
-
-
-    loadProfileData(newProfile);
-
-    statusText.textContent =
-      "profil créé automatiquement";
-
-    return;
-  }
-
-
- 
-
-  loadProfileData(profile);
-
-  statusText.textContent = "";
+  currentUser =
+    data && data.user
+      ? data.user
+      : null;
 
 }
 
 
 
+async function loadMyProfile() {
 
-function loadProfileData(profile) {
+  if (!currentUser) {
+
+    return null;
+
+  }
+
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient
+      .from("profiles")
+      .select("*")
+      .eq("id", currentUser.id)
+      .maybeSingle();
+
+
+  if (error) {
+
+    console.error(error);
+
+    return null;
+
+  }
+
+
+  return data;
+
+}
+
+
+
+async function loadProfileByUsername(username) {
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient
+      .from("profiles")
+      .select("*")
+      .eq("username", username)
+      .maybeSingle();
+
+
+  if (error) {
+
+    console.error(error);
+
+    return null;
+
+  }
+
+
+  return data;
+
+}
+function renderProfile(profile, isOwnProfile) {
+
+  if (!profile) {
+
+    profileContent.innerHTML =
+      "<h2>Profil introuvable</h2>" +
+
+      "<p>Ce profil n'existe pas.</p>";
+
+    editBox.style.display =
+      "none";
+
+    return;
+
+  }
+
 
   const username =
-    profile.username || "anonymous";
+    escapeHtml(
+      profile.username || "user"
+    );
+
 
   const bio =
-    profile.bio || "";
+    escapeHtml(
+      profile.bio || "Pas encore de bio."
+    );
 
-  document.getElementById("pseudo").value =
-    username;
 
-  document.getElementById("bio").value =
-    bio;
-
-  document.getElementById("showpseudo").textContent =
-    "pseudo: " + username;
-
-  document.getElementById("showbio").textContent =
-    "bio: " + bio;
+  let avatarHTML = "";
 
 
   if (profile.avatar) {
 
-    const preview =
-      document.getElementById("preview");
+    avatarHTML =
 
-    preview.src =
-      profile.avatar;
+      "<img " +
 
-    preview.style.display =
+      "class='profile-avatar' " +
+
+      "src=\"" +
+      escapeHtml(profile.avatar) +
+      "\" " +
+
+      "alt=\"avatar\">";
+
+  }
+
+  else {
+
+    avatarHTML =
+
+      "<div " +
+
+      "class='profile-avatar' " +
+
+      "style=\"" +
+      "border:1px solid #888;" +
+      "display:flex;" +
+      "align-items:center;" +
+      "justify-content:center;" +
+      "\">" +
+
+      "pas d'avatar" +
+
+      "</div>";
+
+  }
+
+
+  let buttonsHTML = "";
+
+
+
+  if (!isOwnProfile) {
+
+    buttonsHTML =
+
+      "<br>" +
+
+      "<button " +
+
+      "onclick=\"openMessage('" +
+
+      escapeHtml(
+        profile.username
+      ) +
+
+      "')\">" +
+
+      "envoyer un message" +
+
+      "</button>";
+
+  }
+
+
+  profileContent.innerHTML =
+
+    avatarHTML +
+
+    "<h2>" +
+      username +
+    "</h2>" +
+
+    "<div class='profile-bio'>" +
+
+      "<p>" +
+        bio +
+      "</p>" +
+
+    "</div>" +
+
+    buttonsHTML;
+
+
+  
+
+  if (isOwnProfile) {
+
+    editBox.style.display =
       "block";
+
+    editUsername.value =
+      profile.username || "";
+
+    editBio.value =
+      profile.bio || "";
+
+  }
+
+  else {
+
+    editBox.style.display =
+      "none";
+
   }
 
 }
@@ -287,76 +468,80 @@ function loadProfileData(profile) {
 
 
 
+function openMessage(username) {
+
+  window.location.href =
+    "dm.html?to=" +
+    encodeURIComponent(username);
+
+}
+
+
 async function saveProfile() {
 
-  const pseudo =
-    document.getElementById("pseudo")
-      .value
-      .trim();
+  if (!currentUser) {
 
-  const bio =
-    document.getElementById("bio")
-      .value
-      .trim();
-
-
-  if (!pseudo) {
-
-    statusText.textContent =
-      "mets un pseudo";
-
-    return;
-  }
-
-
-  statusText.textContent =
-    "sauvegarde...";
-
-
-  const {
-    data: userData,
-    error: userError
-  } = await supabaseClient.auth.getUser();
-
-
-  if (userError || !userData.user) {
-
-    statusText.textContent =
+    saveStatus.textContent =
       "tu dois être connecté";
 
     return;
+
   }
 
 
-  const user =
-    userData.user;
+  const username =
+    editUsername.value.trim();
+
+
+  const bio =
+    editBio.value.trim();
+
+
+  if (!username) {
+
+    saveStatus.textContent =
+      "le pseudo est obligatoire";
+
+    return;
+
+  }
+
+
+  saveStatus.textContent =
+    "enregistrement...";
+
+
+  let avatarUrl =
+    currentProfile
+      ? currentProfile.avatar
+      : null;
 
 
 
-
-  let avatarUrl = null;
 
   const file =
-    document.getElementById("img").files[0];
+    avatarFile.files[0];
 
 
   if (file) {
 
     if (!file.type.startsWith("image/")) {
 
-      statusText.textContent =
+      saveStatus.textContent =
         "le fichier doit être une image";
 
       return;
+
     }
 
 
-    if (file.size > 15 * 1024 * 1024) {
+    if (file.size > 5 * 1024 * 1024) {
 
-      statusText.textContent =
-        "image trop grosse (maximum 15 MB)";
+      saveStatus.textContent =
+        "image trop grosse (maximum 5 MB)";
 
       return;
+
     }
 
 
@@ -368,48 +553,57 @@ async function saveProfile() {
 
 
     const filePath =
+
       "avatars/" +
-      user.id +
+
+      currentUser.id +
+
       "/" +
+
       Date.now() +
+
       "_" +
+
       safeName;
 
 
-  
-
     const {
       error: uploadError
-    } = await supabaseClient
-      .storage
-      .from("media")
-      .upload(
-        filePath,
-        file,
-        {
-          contentType: file.type,
-          cacheControl: "3600",
-          upsert: false
-        }
-      );
+    } =
+      await supabaseClient
+        .storage
+        .from("media")
+        .upload(
+          filePath,
+          file,
+          {
+            contentType: file.type,
+            cacheControl: "3600",
+            upsert: false
+          }
+        );
 
 
     if (uploadError) {
 
-      statusText.textContent =
+      console.error(uploadError);
+
+      saveStatus.textContent =
         "erreur avatar: " +
         uploadError.message;
 
       return;
+
     }
 
 
     const {
       data: publicData
-    } = supabaseClient
-      .storage
-      .from("media")
-      .getPublicUrl(filePath);
+    } =
+      supabaseClient
+        .storage
+        .from("media")
+        .getPublicUrl(filePath);
 
 
     avatarUrl =
@@ -419,197 +613,182 @@ async function saveProfile() {
 
 
 
-  const updateData = {
-
-    username: pseudo,
-
-    bio: bio
-
-  };
-
-
-  if (avatarUrl) {
-
-    updateData.avatar =
-      avatarUrl;
-
-  }
-
 
   const {
-    data: updatedProfile,
-    error: updateError
-  } = await supabaseClient
-    .from("profiles")
-    .update(updateData)
-    .eq("id", user.id)
-    .select()
-    .maybeSingle();
-
-
-  if (updateError) {
-
-    /*
-    If the row disappeared for some reason,
-    create it instead.
-    */
-
-    const {
-      error: insertError
-    } = await supabaseClient
+    data,
+    error
+  } =
+    await supabaseClient
       .from("profiles")
-      .insert({
+      .update({
 
-        id: user.id,
-
-        username: pseudo,
+        username: username,
 
         bio: bio,
 
         avatar: avatarUrl
 
-      });
+      })
+      .eq(
+        "id",
+        currentUser.id
+      )
+      .select()
+      .maybeSingle();
 
 
-    if (insertError) {
+  if (error) {
 
-      statusText.textContent =
-        "erreur sauvegarde: " +
-        insertError.message;
+    console.error(error);
 
-      return;
-    }
+    saveStatus.textContent =
+      "erreur: " +
+      error.message;
+
+    return;
 
   }
 
 
-
-  document.getElementById("showpseudo")
-    .textContent =
-    "pseudo: " + pseudo;
-
-  document.getElementById("showbio")
-    .textContent =
-    "bio: " + bio;
+  currentProfile =
+    data;
 
 
-  if (avatarUrl) {
-
-    const preview =
-      document.getElementById("preview");
-
-    preview.src =
-      avatarUrl;
-
-    preview.style.display =
-      "block";
-  }
+  viewedProfile =
+    data;
 
 
-  statusText.textContent =
-    "profil sauvegardé !";
+  await supabaseClient
+    .from("forum_posts")
+    .update({
+
+      username: username,
+
+      avatar: avatarUrl
+
+    })
+    .eq(
+      "user_id",
+      currentUser.id
+    );
+
+
+  saveStatus.textContent =
+    "profil enregistré !";
+
+
+  avatarFile.value = "";
+
+
+  renderProfile(
+    viewedProfile,
+    true
+  );
 
 
   setTimeout(function() {
 
-    statusText.textContent = "";
+    saveStatus.textContent = "";
 
-  }, 1500);
-
-}
-
-
-
-function addFriend() {
-
-  const input =
-    document.getElementById("friendname");
-
-  const name =
-    input.value.trim();
-
-
-  if (!name) return;
-
-
-  const list =
-    JSON.parse(
-      localStorage.getItem("friends") ||
-      "[]"
-    );
-
-
-  if (!list.includes(name)) {
-
-    list.push(name);
-
-  }
-
-
-  localStorage.setItem(
-    "friends",
-    JSON.stringify(list)
-  );
-
-
-  input.value = "";
-
-  showFriends();
+  }, 2000);
 
 }
 
 
-function showFriends() {
+async function startProfile() {
 
-  const list =
-    JSON.parse(
-      localStorage.getItem("friends") ||
-      "[]"
+  await loadCurrentUser();
+
+
+  const requestedUsername =
+    getRequestedUsername();
+
+
+
+
+  if (!requestedUsername) {
+
+    if (!currentUser) {
+
+      profileContent.innerHTML =
+        "<h2>Tu n'es pas connecté</h2>" +
+
+        "<p>Connecte-toi pour voir ton profil.</p>";
+
+      return;
+
+    }
+
+
+    currentProfile =
+      await loadMyProfile();
+
+
+    viewedProfile =
+      currentProfile;
+
+
+    renderProfile(
+      viewedProfile,
+      true
     );
-
-
-  const container =
-    document.getElementById("friends");
-
-
-  if (list.length === 0) {
-
-    container.innerHTML =
-      "<p>pas dami encore</p>";
 
     return;
+
   }
 
 
-  container.innerHTML =
-    list.map(function(name) {
 
-      return `
-        <div class="friend">
 
-          <b>
-            ${escapeHtml(name)}
-          </b>
+  viewedProfile =
+    await loadProfileByUsername(
+      requestedUsername
+    );
 
-          <button
-            onclick="location.href='dm.html?to=${encodeURIComponent(name)}'"
-          >
-            message
-          </button>
 
-        </div>
-      `;
+  if (!viewedProfile) {
 
-    }).join("");
+    profileContent.innerHTML =
+      "<h2>Profil introuvable</h2>" +
+
+      "<p>Utilisateur : " +
+
+      escapeHtml(
+        requestedUsername
+      ) +
+
+      "</p>";
+
+    return;
+
+  }
+
+
+  const isOwnProfile =
+    currentUser &&
+    viewedProfile.id === currentUser.id;
+
+
+  if (isOwnProfile) {
+
+    currentProfile =
+      viewedProfile;
+
+  }
+
+
+  renderProfile(
+    viewedProfile,
+    isOwnProfile
+  );
 
 }
 
 
-loadProfile();
-
-showFriends();
+startProfile();
 
 </script>
 
 </body>
+
 </html>
