@@ -387,101 +387,96 @@ function renderServer(server){
 }
 
 
-async function addServer(){
+function renderServer(server){
 
     const name =
-        document.getElementById(
-            "serverName"
-        ).value.trim();
+        server.name || "serveur CS 1.6";
 
 
     const ip =
-        document.getElementById(
-            "serverIP"
-        ).value.trim();
+        server.ip || "";
 
 
     const mode =
-        document.getElementById(
-            "serverMode"
-        ).value.trim();
+        server.mode || "Classic";
 
 
     const map =
-        document.getElementById(
-            "serverMap"
-        ).value.trim();
+        server.map || "inconnue";
 
 
     const description =
-        document.getElementById(
-            "serverDescription"
-        ).value.trim();
+        server.description || "";
 
 
-    const status =
-        document.getElementById(
-            "adminStatus"
-        );
-
+    let deleteButton = "";
 
 
     if(
-        !currentProfile ||
-        currentProfile.is_admin !== true
+        currentProfile &&
+        currentProfile.is_admin === true
     ){
 
-        status.textContent =
-            "tu n'es pas admin";
+        deleteButton = `
 
-        return;
+            <button
+                onclick="deleteServer(${server.id})"
+            >
+                DELETE
+            </button>
 
-    }
-
-
-    if(!name || !ip){
-
-        status.textContent =
-            "nom et IP obligatoires";
-
-        return;
+        `;
 
     }
 
 
-    status.textContent =
-        "ajout...";
+    return `
 
+        <div class="box">
 
-    const {
-        error
-    } = await supabaseClient
-        .from("cs16_servers")
-        .insert({
+            <h2>
+                ${esc(name)}
+            </h2>
 
-            name: name,
+            <p>
+                <b>IP:</b>
+                ${esc(ip)}
+            </p>
 
-            ip: ip,
+            <p>
+                <b>Mode:</b>
+                ${esc(mode)}
+            </p>
 
-            mode: mode || "Classic",
+            <p>
+                <b>Map:</b>
+                ${esc(map)}
+            </p>
 
-            map: map || "inconnue",
+            ${
+                description
+                ? `<p>${esc(description)}</p>`
+                : ""
+            }
 
-            description: description
+            <p>
 
-        });
+                <a
+                    class="nav"
+                    href="steam://connect/${encodeURIComponent(ip)}"
+                >
+                    CONNECT
+                </a>
 
+                ${deleteButton}
 
-    if(error){
+            </p>
 
-        console.error(error);
+        </div>
 
-        status.textContent =
-            "erreur: " + error.message;
+    `;
 
-        return;
-
-    }
+}
 
 
 
