@@ -23,8 +23,27 @@
 
 <div class="box">
 <h2> terminal</h2>
-<div style="background:#000;color:#00ff66;text-align:left;padding:15px;border-radius:8px">
-&gt; conexion www.domsun.com...<br>&gt; ok<br>&gt; bienvenue 
+
+<div id="terminal"
+style="background:#000;color:#00ff66;text-align:left;padding:15px;border-radius:8px;font-family:monospace;min-height:220px;box-sizing:border-box;cursor:text;overflow-y:auto">
+
+<div id="terminalOutput">
+&gt; conexion www.domsun.com...<br>
+&gt; ok<br>
+&gt; bienvenue<br>
+&gt; tape <b>help</b> pour voir les commandes.
+</div>
+
+<div style="display:flex;margin-top:8px">
+<span>&gt;&nbsp;</span>
+<input
+id="terminalInput"
+autocomplete="off"
+spellcheck="false"
+style="flex:1;background:#000;color:#00ff66;border:0;outline:0;font-family:monospace;font-size:inherit"
+>
+</div>
+
 </div>
 </div>
 
@@ -39,11 +58,183 @@
 function boom(){
  document.body.innerHTML='<div style="padding-top:20vh"><h1 style="color:#2b67ce;font-size:70px">erreur site</h1><p></p><a class="nav" href="index.html">retour</a></div>';
 }
+
+
+
+
+const terminal = document.getElementById("terminal");
+const terminalInput = document.getElementById("terminalInput");
+const terminalOutput = document.getElementById("terminalOutput");
+
+function escapeTerminal(text) {
+  return String(text).replace(/[&<>"']/g, function(c) {
+    return {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[c];
+  });
+}
+
+function terminalPrint(text) {
+  const line = document.createElement("div");
+  line.innerHTML = text;
+  terminalOutput.appendChild(line);
+  terminal.scrollTop = terminal.scrollHeight;
+}
+
+function terminalCommand(command) {
+
+  const raw = command.trim();
+  const cmd = raw.toLowerCase();
+
+  if (!raw) return;
+
+  terminalPrint("&gt; " + escapeTerminal(raw));
+
+  if (cmd === "help") {
+
+    terminalPrint(
+      "commandes disponibles:<br>" +
+      "help - affiche les commandes<br>" +
+      "clear - efface le terminal<br>" +
+      "about - infos sur domsun<br>" +
+      "whoami - affiche ton pseudo<br>" +
+      "date - affiche la date<br>" +
+      "profile - ouvre ton profil<br>" +
+      "forum - ouvre le forum<br>" +
+      "friends - ouvre tes amis<br>" +
+      "messages - ouvre les messages<br>" +
+      "media - ouvre domsun tv<br>" +
+      "downloads - ouvre les téléchargements<br>" +
+      "cs16 - ouvre les serveurs CS 1.6<br>" +
+      "themes - ouvre les thèmes<br>" +
+      "theme ps3 - active le thème PS3<br>" +
+      "theme xp_bleu - active le thème XP bleu"
+    );
+
+  } else if (cmd === "clear") {
+
+    terminalOutput.innerHTML = "";
+
+  } else if (cmd === "about") {
+
+    terminalPrint(
+      "domsun06 - syte perso de domsun.<br>" +
+      "logisyel, forum, profils, jeux é +++"
+    );
+
+  } else if (cmd === "whoami") {
+
+    const pseudo = localStorage.getItem("pseudo");
+
+    terminalPrint(
+      "pseudo: " +
+      escapeTerminal(pseudo || "anonymous")
+    );
+
+  } else if (cmd === "date") {
+
+    terminalPrint(
+      new Date().toLocaleString("fr-FR")
+    );
+
+  } else if (cmd === "profile") {
+
+    location.href = "profil.html";
+
+  } else if (cmd === "forum") {
+
+    location.href = "forum.html";
+
+  } else if (cmd === "friends") {
+
+    location.href = "amis.html";
+
+  } else if (cmd === "messages" || cmd === "dm") {
+
+    location.href = "dm.html";
+
+  } else if (cmd === "media") {
+
+    location.href = "media.html";
+
+  } else if (cmd === "downloads") {
+
+    location.href = "downloads.html";
+
+  } else if (cmd === "cs16") {
+
+    location.href = "cs16.html";
+
+  } else if (cmd === "themes") {
+
+    location.href = "themes.html";
+
+  } else if (cmd === "theme ps3") {
+
+    if (typeof setTheme === "function") {
+      setTheme("ps3.css");
+      terminalPrint("thème PS3 activé.");
+    } else {
+      terminalPrint("erreur: theme.js n'est pas chargé.");
+    }
+
+  } else if (cmd === "theme xp_bleu") {
+
+    if (typeof setTheme === "function") {
+      setTheme("xp_bleu.css");
+      terminalPrint("thème XP bleu activé.");
+    } else {
+      terminalPrint("erreur: theme.js n'est pas chargé.");
+    }
+
+  } else {
+
+    terminalPrint(
+      "commande inconnue: " +
+      escapeTerminal(raw) +
+      "<br>tape <b>help</b> pour voir les commandes."
+    );
+
+  }
+}
+
+terminalInput.addEventListener("keydown", function(event) {
+
+  if (event.key === "Enter") {
+
+    terminalCommand(terminalInput.value);
+    terminalInput.value = "";
+
+  }
+
+});
+
+terminal.addEventListener("click", function() {
+  terminalInput.focus();
+});
+
+
+
+
 let secret="", target="space";
+
 document.addEventListener("keydown",e=>{
-  if(e.key.length===1) secret+=e.key.toUpperCase();
-  if(secret.length>target.length) secret=secret.slice(-target.length);
-  if(secret===target) location.href="spac3.html";
+
+  if (document.activeElement === terminalInput) return;
+
+  if(e.key.length===1)
+    secret+=e.key.toUpperCase();
+
+  if(secret.length>target.length)
+    secret=secret.slice(-target.length);
+
+  if(secret===target)
+    location.href="spac3.html";
+
 });
 </script>
 </body>
