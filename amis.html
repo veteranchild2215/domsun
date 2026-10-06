@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+
+<meta charset="utf-8">
+
+<title>amis - domsun</title>
+
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-config.js"></script>
+<script src="theme.js"></script>
+
+<style>
+
+.friends-page {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 30px 0;
+}
+
+.friends-card {
+  width: min(700px, 92%);
+}
+
+.friend-add {
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.friend-add input {
+  padding: 9px;
+  width: 60%;
+  box-sizing: border-box;
+}
+
+.friend-add button {
+  padding: 9px 15px;
+  cursor: pointer;
+}
+
+.friend {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+
+  padding: 12px;
+  margin: 10px 0;
+
+  min-height: 55px;
+}
+
+.friend-avatar {
+  width: 50px;
+  height: 50px;
+
+  object-fit: cover;
+
+  border-radius: 0;
+
+  border: 1px solid #777;
+}
+
+.friend-name {
+  flex: 1;
+  text-align: left;
+}
+
+.friend-name a {
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.friend button {
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+#status {
+  margin: 10px 0;
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<h1>mes amis</h1>
+
+
+<div class="friends-page">
+
+  <div class="friends-card">
+
+
+    <!-- AJOUTER UN AMI -->
+
+    <div class="box friend-add">
+
+      <h3>ajouter un ami</h3>
+
+      <input
+        id="friendUsername"
+        type="text"
+        placeholder="pseudo de ton ami"
+      >
+
+      <button
+        onclick="addFriend()">
+        ajouter
+      </button>
+
+      <p id="status"></p>
+
+    </div>
+
+
+    <!-- LISTE DES AMIS -->
+
+    <div class="box">
+
+      <h3>ma liste d'amis</h3>
+
+      <div id="friendsList">
+        chargement...
+      </div>
+
+    </div>
+
+
+  </div>
+
+</div>
+
+
+<br>
+
+
+<a
+  class="nav"
+  href="index.html">
+  accueil
+</a>
+
+
+<a
+  class="nav"
+  href="forum.html">
+  forum
+</a>
+
+
+<a
+  class="nav"
+  href="profil.html">
+  profil
+</a>
+
+
+<script>
+
+
+
+
+let currentUser = null;
+
+
+
+
+const defaultAvatar =
+  "data:image/svg+xml;charset=UTF-8," +
+  encodeURIComponent(
+    "<svg xmlns='http://www.w3.org/2000/svg' " +
+    "width='50' height='50'>" +
+    "<rect width='50' height='50' fill='#ddd'/>" +
+    "<text x='25' y='29' " +
+    "text-anchor='middle' " +
+    "font-size='8'>avatar</text>" +
+    "</svg>"
+  );
+
+
+
+
+function esc(text) {
+
+  return String(text ?? "").replace(
+    /[&<>"']/g,
+    function(c) {
+
+      return {
+
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+
+      }[c];
+
+    }
+  );
+
+}
+
+
+
+
+async function loadUser() {
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient.auth.getUser();
+
+
+  if (error || !data.user) {
+
+    friendsList.innerHTML =
+      "<p>tu dois être connecté pour voir tes amis.</p>";
+
+    return false;
+
+  }
+
+
+  currentUser =
+    data.user;
+
+  return true;
+
+}
+
+
+
+
+async function loadFriends() {
+
+  if (!currentUser) return;
+
+
+  friendsList.innerHTML =
+    "chargement...";
+
+
+ 
+
+  const {
+    data: friendships,
+    error
+  } =
+    await supabaseClient
+      .from("friendships")
+      .select(
+        "id, friend_id, created_at"
+      )
+      .eq(
+        "user_id",
+        currentUser.id
+      )
+      .order(
+        "created_at",
+        {
+          ascending: true
+        }
+      );
+
+
+  if (error) {
+
+    console.error(error);
+
+    friendsList.innerHTML =
+      "<p>erreur : " +
+      esc(error.message) +
+      "</p>";
+
+    return;
+
+  }
+
+
+  if (
+    !friendships ||
+    friendships.length === 0
+  ) {
+
+    friendsList.innerHTML =
+      "<p>tu n'as pas encore d'amis.</p>";
+
+    return;
+
+  }
+
+
+  /*
+    Get all friend profiles.
+  */
+
+  const friendIds =
+    friendships.map(
+      function(friend) {
+        return friend.friend_id;
+      }
+    );
+
+
+  const {
+    data: profiles,
+    error: profileError
+  } =
+    await supabaseClient
+      .from("profiles")
+      .select(
+        "id, username, avatar"
+      )
+      .in(
+        "id",
+        friendIds
+      );
+
+
+  if (profileError) {
+
+    console.error(profileError);
+
+    friendsList.innerHTML =
+      "<p>erreur chargement des profils.</p>";
+
+    return;
+
+  }
+
+
+  friendsList.innerHTML =
+    "";
+
+
+ 
+
+  friendships.forEach(
+    function(friendship) {
+
+      const profile =
+        profiles.find(
+          function(p) {
+            return p.id === friendship.friend_id;
+          }
+        );
+
+
+      if (!profile) return;
+
+
+      const div =
+        document.createElement("div");
+
+
+      div.className =
+        "friend box";
+
+
+      const avatar =
+        document.createElement("img");
+
+      avatar.className =
+        "friend-avatar";
+
+      avatar.src =
+        profile.avatar ||
+        defaultAvatar;
+
+      avatar.alt =
+        "avatar";
+
+
+      const name =
+        document.createElement("div");
+
+      name.className =
+        "friend-name";
+
+
+      name.innerHTML =
+        "<a href='profil.html?user=" +
+        encodeURIComponent(
+          profile.username
+        ) +
+        "'>" +
+        esc(profile.username) +
+        "</a>";
+
+
+     
+
+      const chat =
+        document.createElement("button");
+
+      chat.textContent =
+        "CHAT";
+
+
+      chat.onclick =
+        function() {
+
+          window.location.href =
+            "dm.html?to=" +
+            encodeURIComponent(
+              profile.username
+            );
+
+        };
+
+
+     
+
+      const remove =
+        document.createElement("button");
+
+      remove.textContent =
+        "supprimer";
+
+
+      remove.onclick =
+        function() {
+
+          removeFriend(
+            friendship.id
+          );
+
+        };
+
+
+      div.appendChild(
+        avatar
+      );
+
+      div.appendChild(
+        name
+      );
+
+      div.appendChild(
+        chat
+      );
+
+      div.appendChild(
+        remove
+      );
+
+
+      friendsList.appendChild(
+        div
+      );
+
+    }
+  );
+
+}
+
+
+
+async function addFriend() {
+
+  if (!currentUser) {
+
+    status.textContent =
+      "tu dois être connecté.";
+
+    return;
+
+  }
+
+
+  const username =
+    friendUsername.value.trim();
+
+
+  if (!username) {
+
+    status.textContent =
+      "entre un pseudo.";
+
+    return;
+
+  }
+
+
+  status.textContent =
+    "recherche...";
+
+
+
+
+  const {
+    data: profile,
+    error
+  } =
+    await supabaseClient
+      .from("profiles")
+      .select(
+        "id, username"
+      )
+      .eq(
+        "username",
+        username
+      )
+      .maybeSingle();
+
+
+  if (error) {
+
+    status.textContent =
+      "erreur : " +
+      error.message;
+
+    return;
+
+  }
+
+
+  if (!profile) {
+
+    status.textContent =
+      "ce pseudo n'existe pas.";
+
+    return;
+
+  }
+
+
+ 
+
+  if (
+    profile.id ===
+    currentUser.id
+  ) {
+
+    status.textContent =
+      "tu ne peux pas t'ajouter toi-même mdr.";
+
+    return;
+
+  }
+
+
+  
+
+  const {
+    data: existing
+  } =
+    await supabaseClient
+      .from("friendships")
+      .select("id")
+      .eq(
+        "user_id",
+        currentUser.id
+      )
+      .eq(
+        "friend_id",
+        profile.id
+      )
+      .maybeSingle();
+
+
+  if (existing) {
+
+    status.textContent =
+      "cette personne est déjà dans tes amis.";
+
+    return;
+
+  }
+
+
+
+  const {
+    error: insertError
+  } =
+    await supabaseClient
+      .from("friendships")
+      .insert({
+
+        user_id:
+          currentUser.id,
+
+        friend_id:
+          profile.id
+
+      });
+
+
+  if (insertError) {
+
+    console.error(
+      insertError
+    );
+
+    status.textContent =
+      "erreur : " +
+      insertError.message;
+
+    return;
+
+  }
+
+
+  friendUsername.value =
+    "";
+
+
+  status.textContent =
+    profile.username +
+    " a été ajouté à tes amis !";
+
+
+  await loadFriends();
+
+}
+
+
+
+
+async function removeFriend(
+  friendshipId
+) {
+
+  const {
+    error
+  } =
+    await supabaseClient
+      .from("friendships")
+      .delete()
+      .eq(
+        "id",
+        friendshipId
+      );
+
+
+  if (error) {
+
+    console.error(error);
+
+    status.textContent =
+      "erreur suppression : " +
+      error.message;
+
+    return;
+
+  }
+
+
+  status.textContent =
+    "ami supprimé.";
+
+
+  await loadFriends();
+
+}
+
+
+
+
+friendUsername.addEventListener(
+  "keydown",
+  function(event) {
+
+    if (
+      event.key === "Enter"
+    ) {
+
+      addFriend();
+
+    }
+
+  }
+);
+
+
+
+async function start() {
+
+  const loggedIn =
+    await loadUser();
+
+
+  if (!loggedIn) return;
+
+
+  await loadFriends();
+
+}
+
+
+start();
+
+</script>
+
+
+</body>
+
+</html>
